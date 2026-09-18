@@ -175,3 +175,76 @@ source for metric definitions, and softening `ARCHITECTURE.md`'s Gatekeeper-inpu
 it no longer presupposes Diagnoser confidence is a settled gate input). No other files
 changed; no agent code was implemented; no dependencies were added; the literature review has
 not started.
+
+## 2026-09-18 — Phase 1.6 literature checkpoint completed; four evidence-sufficient decisions adopted
+
+`docs/literature_review.md` records a targeted literature checkpoint against the specific
+unresolved questions in `docs/research_protocol.md` — not a general survey. Sources were
+independently verified this pass (title/author/venue/identifier cross-checked against ≥2
+sources each), and the highest-stakes claims were confirmed by reading the primary paper in
+full rather than relying on an abstract; full-read vs. metadata-only status is recorded per
+source in `docs/literature_review.md` §11.
+
+**Four decisions were evidence-sufficient and are now reflected in `docs/research_protocol.md`:**
+
+1. **Naive equal-width histogram-binning ECE is rejected** as the primary scalar calibration
+   summary at Renacir's expected n≈30–50 (§10.8). Full-text evidence from Kumar, Liang & Ma
+   (NeurIPS 2019) and Roelofs et al. (AISTATS 2022) independently show sample requirements
+   one to three orders of magnitude above Renacir's scale. Brier score vs. no scalar summary,
+   and how to represent calibration uncertainty, remain unresolved — this decision narrows
+   the calibration question, it does not close it.
+2. **The tier-1/tier-2/incorrect correctness taxonomy and the no-syntactic-similarity rule
+   are literature-confirmed, not revised** (§7.1). Full-text evidence from Qi et al. (ISSTA
+   2015), SWT-Bench (NeurIPS 2024), and PatchDiff (arXiv 2503.15223) converges on: test-suite
+   passage is necessary but not sufficient for correctness, and behavioral divergence from a
+   gold patch is not automatically evidence of incorrectness. Renacir's existing taxonomy is
+   preserved as-is; PatchDiff's own taxonomy/thresholds are not adopted in its place.
+3. **A concrete contamination-mitigation policy is adopted for real historical cases**
+   (§19): record fix dates and model/training-cutoff information where available, flag (never
+   silently exclude) cases whose timing makes contamination plausible, distinguish diagnostic
+   evidence of memorization from direct proof (there is none, for any specific case), never
+   claim a case is proven uncontaminated, and do not treat a popular curated real-bug
+   database (e.g. BugsInPy) as exempt from the same risk class as SWE-bench merely because it
+   differs in language scope or size. Full-text evidence from SWE-Bench Illusion, SWE-rebench,
+   and SWE-bench's own (insufficient) internal check.
+4. **Clopper-Pearson is retained for descriptive binomial intervals, with an explicit new
+   scope limitation** (§16): it does not itself account for repository clustering. This
+   limitation is now stated directly rather than left implicit.
+
+**Conformal prediction was NOT selected, and repository-clustered uncertainty estimation
+remains unresolved** (§9, §16). By direct reading, jackknife+/CV+ (Barber et al. 2021)
+explicitly states its guarantees likely fail under correlated within-group observations; the
+two "beyond exchangeability" papers found (Barber et al. 2023; Oliveira et al. 2024) both
+target temporal drift, not discrete-group dependence, despite superficially relevant framing;
+class-conditional/"clustered" conformal prediction (Ding et al. 2023) clusters prediction
+classes with too few examples, a different problem from repository dependence that happens to
+share a word; Mondrian conformal prediction (Vovk et al. 2003, unpublished) is the closest
+structural match but its own known failure mode is too few examples per group — the likely
+regime for most of Renacir's repositories. **This is recorded as a genuine negative finding,
+not a search gap: no conformal method examined has established applicability to Renacir's
+repository-grouped, small-n, stochastic-output structure.** Conformal prediction is not ruled
+out in general — only unsupported for Renacir so far. Separately, MacKinnon & Webb's wild
+cluster bootstrap (2018) is recorded only as a candidate lead for the unresolved
+repository-clustered-uncertainty question (§16): its small-cluster-count result is from a
+regression treatment-effect setting, not established as applicable to Renacir's
+proportion/paired-binary setting, and it is not adopted.
+
+**AURC remains secondary to the risk-coverage curve**, unchanged (§10.4). Zhou et al. (ICML
+2025, metadata-verified only) establish asymptotic consistency for finite-sample AURC
+estimators, but the finding does not supply a usable finite-sample uncertainty figure at
+Renacir's scale — this is recorded as still unresolved, not as new justification either way.
+
+**Left explicitly unresolved by this checkpoint** (full list and reasons in
+`docs/research_protocol.md`'s "Unresolved methodological questions"): Brier vs. no scalar
+calibration summary, calibration-uncertainty representation, the repo-level split scheme
+(LORO vs. grouped k-fold vs. fixed), the exact diagnosis-accuracy metric/granularity, the
+Collector retrieval-completeness diagnostic, which (if any) conformal method to use, K
+repeated stochastic runs, the repeated-run aggregation policy, the real:synthetic benchmark
+ratio, a clustered paired-comparison method, repository-clustered uncertainty estimation
+generally, and AURC's precise finite-sample uncertainty at n≈30–50.
+
+No Renacir component (Collector, Diagnoser, Patcher, Validator, Gatekeeper, Orchestrator) was
+implemented. No benchmark code was modified. No dependencies were added. Only
+`docs/literature_review.md` (new), `docs/research_protocol.md`, and this file were changed;
+`PROJECT_SPEC.md`, `ARCHITECTURE.md`, and `EVALUATION_PLAN.md` were reviewed for factual
+consistency and required no changes.
