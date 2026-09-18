@@ -13,12 +13,24 @@ from renacir.benchmark.discovery import (
 )
 from renacir.benchmark.models import BenchmarkManifest
 
+ALL_CASE_IDS = {
+    "assertion-average-off-by-one",
+    "import-renamed-helper",
+    "assertion-discount-boolean-logic",
+    "assertion-tags-mutable-default",
+    "assertion-truncate-empty-edge-case",
+    "assertion-config-fallback-default",
+    "import-reportpkg-missing-reexport",
+    "import-reportpkg-bad-local-import",
+    "import-reportpkg-broken-init",
+}
 
-def test_discover_cases_returns_both_seed_cases():
+
+def test_discover_cases_returns_all_phase_2b_cases():
     cases = discover_cases()
     ids = {case.id for case in cases}
 
-    assert ids == {"assertion-average-off-by-one", "import-renamed-helper"}
+    assert ids == ALL_CASE_IDS
 
 
 def test_case_ids_are_unique():
@@ -58,12 +70,62 @@ def test_real_manifest_loads_at_current_schema_version():
     assert manifest.schema_version == SUPPORTED_SCHEMA_VERSION == 2
 
 
-def test_two_current_fixtures_have_distinct_source_groups():
+def test_two_original_fixtures_have_distinct_source_groups():
     cases = {case.id: case for case in discover_cases()}
     assert (
         cases["assertion-average-off-by-one"].source.source_group_id
         != cases["import-renamed-helper"].source.source_group_id
     )
+
+
+def test_reportpkg_cases_share_a_source_group():
+    cases = {case.id: case for case in discover_cases()}
+    reportpkg_ids = [
+        "import-reportpkg-missing-reexport",
+        "import-reportpkg-bad-local-import",
+        "import-reportpkg-broken-init",
+    ]
+    groups = {cases[cid].source.source_group_id for cid in reportpkg_ids}
+    assert groups == {"synthetic:reportpkg-template"}
+
+
+def test_textstats_cases_share_a_source_group():
+    cases = {case.id: case for case in discover_cases()}
+    groups = {
+        cases["assertion-tags-mutable-default"].source.source_group_id,
+        cases["assertion-truncate-empty-edge-case"].source.source_group_id,
+    }
+    assert groups == {"synthetic:textstats-template"}
+
+
+def test_source_groups_are_not_all_singletons():
+    cases = discover_cases()
+    group_counts: dict[str, int] = {}
+    for case in cases:
+        group_counts[case.source.source_group_id] = (
+            group_counts.get(case.source.source_group_id, 0) + 1
+        )
+
+    assert any(count > 1 for count in group_counts.values()), (
+        "expected at least one source group with more than one case; "
+        "grouping must not default to a unique group per case"
+    )
+
+
+@pytest.mark.parametrize(
+    "case",
+    [c for c in discover_cases() if c.independent_checks],
+    ids=lambda case: case.id,
+)
+def test_independent_check_files_exist_on_disk(case):
+    directory = DEFAULT_BENCHMARK_ROOT / case.path
+    for check in case.independent_checks:
+        assert (directory / check.path).is_file()
+
+
+def test_dropped_candidate_is_not_in_the_executable_manifest():
+    ids = {case.id for case in discover_cases()}
+    assert "assertion-tax-wrong-constant" not in ids
 
 
 def test_manifest_rejects_unsupported_schema_version(tmp_path):

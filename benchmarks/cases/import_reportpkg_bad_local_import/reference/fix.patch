@@ -1,0 +1,10 @@
+diff --git a/reportpkg/core.py b/reportpkg/core.py
+index bf66293..43da64f 100644
+--- a/reportpkg/core.py
++++ b/reportpkg/core.py
+@@ -1,4 +1,4 @@
+ def generate_report(title):
+-    import helpers
++    from . import helpers
+ 
+     return helpers.format_title(title)

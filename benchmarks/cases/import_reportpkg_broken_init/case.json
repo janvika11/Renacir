@@ -1,0 +1,6 @@
+{
+  "id": "import-reportpkg-broken-init",
+  "category": "import",
+  "description": "reportpkg/__init__.py imports legacy_formatter from core.py, a symbol left over from a refactor that no longer exists there, so 'import reportpkg' itself fails immediately and the entire package becomes unusable, not just one re-export path.",
+  "root_cause": "stale symbol reference in a package's __init__.py after a refactor"
+}

@@ -7,10 +7,23 @@ from renacir.benchmark.curation import (
 )
 
 
-def test_empty_candidate_log_loads():
+def test_candidate_log_loads_at_current_schema_version():
     log = load_candidate_log()
     assert log.schema_version == CANDIDATES_SCHEMA_VERSION
-    assert log.records == []
+
+
+def test_candidate_log_records_the_phase_2b_dropped_candidate():
+    log = load_candidate_log()
+    record = next(r for r in log.records if r.candidate_id == "assertion-tax-wrong-constant")
+
+    assert record.decision == "rejected"
+    assert record.benchmark_case_id is None
+    assert record.rejection_reasons != []
+
+
+def test_no_real_world_candidates_recorded_yet():
+    log = load_candidate_log()
+    assert all(r.source != "real" for r in log.records)
 
 
 def test_candidates_file_exists_and_is_separate_from_manifest():

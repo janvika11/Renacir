@@ -1,0 +1,6 @@
+{
+  "id": "assertion-tags-mutable-default",
+  "category": "assertion",
+  "description": "collect_tags() uses a mutable default argument (bucket=[]) so the same list object is reused and accumulates state across unrelated calls instead of starting fresh each time.",
+  "root_cause": "mutable default argument causing state to leak across calls"
+}

@@ -1,0 +1,6 @@
+{
+  "id": "assertion-discount-boolean-logic",
+  "category": "assertion",
+  "description": "calculate_discount() requires both membership AND a large cart total to grant a discount, using 'and' where the intended rule ('or') should grant a discount to either members or large carts.",
+  "root_cause": "wrong boolean operator (and instead of or) in a conditional"
+}

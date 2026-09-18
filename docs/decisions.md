@@ -330,3 +330,89 @@ rejected-candidate representability, both fixtures still fail-then-pass through 
 `ruff check .` and `ruff format --check .` clean, `git diff --check` clean, benchmark CLI
 (`list`/`run`) exercised manually against the migrated schema. No Collector, Diagnoser,
 Patcher, Validator, Gatekeeper, or Orchestrator code was added. No dependencies were added.
+
+## 2026-09-18 — Phase 2B synthetic pilot expansion (2 → 9 cases)
+
+Expanded the synthetic benchmark from the 2 Phase 1 infrastructure-validation cases to a
+9-case synthetic pilot, using the Phase 2A schema. **This is a pilot, not the final research
+benchmark** — no real-world curation has started, and no claim of statistical
+representativeness is made. `EVALUATION_PLAN.md`'s ~30–50 case target remains unmet.
+
+**Final deduplication check, before implementation** (required by the approved Phase 2B
+plan): the two candidates flagged as closest to the existing fixture were each compared on
+root cause, failure shape, diagnostic information needed, repair operation, and
+correctness-check design.
+- `assertion-tax-wrong-constant` vs. `assertion-average-off-by-one`: matched on every
+  dimension (both: wrong numeric literal in a single-expression computation, wrong-magnitude
+  scalar failure, one-line-formula diagnosis, single-token repair, differential-sweep check).
+  **Dropped** — not built, no replacement manufactured. Recorded as a rejected candidate in
+  `benchmarks/candidates.json` with the comparison as its rejection reason.
+- `assertion-truncate-empty-edge-case` vs. `assertion-average-off-by-one`: differed on every
+  dimension (comparison-operator boundary bug vs. arithmetic-operand bug; control-flow/string
+  failure vs. numeric-magnitude failure; boundary-inclusivity reasoning vs. formula-checking;
+  operator swap vs. operand removal; boundary-sweep check vs. numeric-differential check).
+  **Kept.**
+
+**9 accepted cases, 5 assertion / 4 import, across 6 source groups**:
+
+| Source group | Cases |
+|---|---|
+| `synthetic:assertion-off-by-one-denominator` | `assertion-average-off-by-one` (Phase 1) |
+| `synthetic:import-stale-name-after-rename` | `import-renamed-helper` (Phase 1) |
+| `synthetic:billing-template` | `assertion-discount-boolean-logic` |
+| `synthetic:textstats-template` | `assertion-tags-mutable-default`, `assertion-truncate-empty-edge-case` |
+| `synthetic:config-fallback-standalone` | `assertion-config-fallback-default` |
+| `synthetic:reportpkg-template` | `import-reportpkg-missing-reexport`, `import-reportpkg-bad-local-import`, `import-reportpkg-broken-init` |
+
+`billing-template` intentionally hosts only 1 case (its sibling candidate was dropped above)
+rather than being backfilled to look less like a singleton — grouping reflects genuine
+template-sharing, not a target group size.
+
+**7 of 9 cases carry an independent, evaluator-only correctness check**
+(`reference/independent_check.py`) beyond the originally-failing test — boundary sweeps,
+cross-call state checks, or import-signature/delegation checks. The 2 Phase 1 cases don't
+have one yet (a recorded gap, not new work in scope here). Every check was verified to pass
+against the reference-repaired code independently of the harness, before being wired in.
+
+**Leakage architecture change, discovered during implementation, not improvised around**:
+building the independent-check mechanism required actually staging additional files for
+evaluator-only execution, which surfaced that `renacir.benchmark.runner.staged_case`
+previously copied a case's entire directory — including `reference/` — into the isolated test
+directory every run. This never affected pass/fail correctness (nothing under `reference/`
+matched pytest's discovery pattern), but it left Tier D material physically present in the
+same tree a future Collector would scan, independent of `ModelFacingContext`'s own field
+allowlist. Fixed: `staged_case` now excludes `reference/` entirely; the reference-repair patch
+is read from the original case directory when applied; independent-check files are copied in
+individually, only after the repair is already applied. Verified by a new test
+(`test_staged_case_never_contains_reference_directory`) and by the full existing suite still
+passing unchanged for the 2 Phase 1 cases.
+
+**Second infrastructure issue discovered and fixed, not routed around**: `import-reportpkg-
+broken-init`'s intentional bug (a stale import of a removed symbol) also trips Renacir's own
+`ruff` `F401` (unused-import) rule — the first fixture whose bug happens to overlap with a
+selected lint rule. Fixed by excluding `benchmarks/` from `ruff` entirely
+(`extend-exclude = ["benchmarks"]` in `pyproject.toml`), on the principle that intentionally-
+broken fixture code should never be held to Renacir's own lint standard — not by reshaping the
+bug to dodge the linter.
+
+**Reproducibility**: each of the 7 new cases was run 5 consecutive times through the full
+harness (`renacir-benchmark run <id>`) with identical results every time — deterministic
+pre-repair failure, post-repair success, independent check pass. Per
+`docs/benchmark_schema.md`, this is the pragmatic Phase 2 pilot heuristic
+(`reproducibility_check_version: "pilot-5x-v1"`), not a statistical non-flakiness guarantee.
+Fixture file checksums were confirmed unchanged after every run (staging copies, never
+mutates, the source fixtures).
+
+**Verified before considering Phase 2B complete**: full `pytest` suite and unrestricted
+`pytest .` both pass with all 9 cases collected only through the harness, never through
+Renacir's own test collection; `ruff check .` and `ruff format --check .` clean; every case
+individually exercised through `renacir-benchmark run <id>`; `git diff --check` clean.
+
+**Left unresolved, unaffected by this pilot expansion**: repository-level split scheme,
+real:synthetic ratio, exact sandbox resource/time limits, repository-identity exposure,
+calibration-summary methodology beyond ruling out naive ECE, conformal method choice, K
+repeated runs and aggregation policy — all exactly as open as recorded in
+`docs/research_protocol.md`. No Collector, Diagnoser, Patcher, Validator, Gatekeeper, or
+Orchestrator code was added. No LLM or GitHub API integration was added. No new dependency
+was added (the `ruff` config change is not a dependency). No real-world dataset was
+downloaded and no real-world case was curated.

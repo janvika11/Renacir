@@ -34,7 +34,8 @@
           "flag": "not_applicable",
           "notes": "synthetic, authored for Renacir; no upstream history to be contaminated by"
         }
-      }
+      },
+      "independent_checks": []
     },
     {
       "id": "import-renamed-helper",
@@ -69,7 +70,295 @@
           "flag": "not_applicable",
           "notes": "synthetic, authored for Renacir; no upstream history to be contaminated by"
         }
-      }
+      },
+      "independent_checks": []
+    },
+    {
+      "id": "assertion-discount-boolean-logic",
+      "category": "assertion",
+      "path": "cases/assertion_discount_boolean_logic",
+      "command": ["pytest", "-q"],
+      "failing_test": "test_billing.py::test_discount_for_large_nonmember_cart",
+      "reference_repair": {
+        "patch": "reference/fix.patch"
+      },
+      "execution": {
+        "python_version": "3.11+",
+        "dependency_spec": null,
+        "install_procedure": null,
+        "environment_info": "pure Python stdlib, no external dependencies, no network access required",
+        "reproducibility_check_version": "pilot-5x-v1"
+      },
+      "source": {
+        "type": "synthetic",
+        "source_group_id": "synthetic:billing-template",
+        "repository_size": {
+          "loc": 4,
+          "file_count": 2
+        }
+      },
+      "curation": {
+        "status": "accepted",
+        "rejection_reason": null,
+        "dedup_cluster_id": "synthetic:billing-template",
+        "fold": "unassigned",
+        "contamination_risk": {
+          "flag": "not_applicable",
+          "notes": "synthetic, authored for Renacir; no upstream history to be contaminated by"
+        }
+      },
+      "independent_checks": [
+        {
+          "path": "reference/independent_check.py",
+          "description": "Boundary sweep over all (is_member, cart_total) combinations, not just the one visible failing input."
+        }
+      ]
+    },
+    {
+      "id": "assertion-tags-mutable-default",
+      "category": "assertion",
+      "path": "cases/assertion_tags_mutable_default",
+      "command": ["pytest", "-q"],
+      "failing_test": "test_textstats.py::test_collect_tags_is_independent_across_calls",
+      "reference_repair": {
+        "patch": "reference/fix.patch"
+      },
+      "execution": {
+        "python_version": "3.11+",
+        "dependency_spec": null,
+        "install_procedure": null,
+        "environment_info": "pure Python stdlib, no external dependencies, no network access required",
+        "reproducibility_check_version": "pilot-5x-v1"
+      },
+      "source": {
+        "type": "synthetic",
+        "source_group_id": "synthetic:textstats-template",
+        "repository_size": {
+          "loc": 3,
+          "file_count": 2
+        }
+      },
+      "curation": {
+        "status": "accepted",
+        "rejection_reason": null,
+        "dedup_cluster_id": "synthetic:textstats-template",
+        "fold": "unassigned",
+        "contamination_risk": {
+          "flag": "not_applicable",
+          "notes": "synthetic, authored for Renacir; no upstream history to be contaminated by"
+        }
+      },
+      "independent_checks": [
+        {
+          "path": "reference/independent_check.py",
+          "description": "Calls collect_tags three times in a row with no bucket argument and asserts no cross-call accumulation, a stronger version of the visible test's property."
+        }
+      ]
+    },
+    {
+      "id": "assertion-truncate-empty-edge-case",
+      "category": "assertion",
+      "path": "cases/assertion_truncate_empty_edge_case",
+      "command": ["pytest", "-q"],
+      "failing_test": "test_textstats.py::test_truncate_exact_width_is_unchanged",
+      "reference_repair": {
+        "patch": "reference/fix.patch"
+      },
+      "execution": {
+        "python_version": "3.11+",
+        "dependency_spec": null,
+        "install_procedure": null,
+        "environment_info": "pure Python stdlib, no external dependencies, no network access required",
+        "reproducibility_check_version": "pilot-5x-v1"
+      },
+      "source": {
+        "type": "synthetic",
+        "source_group_id": "synthetic:textstats-template",
+        "repository_size": {
+          "loc": 4,
+          "file_count": 2
+        }
+      },
+      "curation": {
+        "status": "accepted",
+        "rejection_reason": null,
+        "dedup_cluster_id": "synthetic:textstats-template",
+        "fold": "unassigned",
+        "contamination_risk": {
+          "flag": "not_applicable",
+          "notes": "synthetic, authored for Renacir; no upstream history to be contaminated by"
+        }
+      },
+      "independent_checks": [
+        {
+          "path": "reference/independent_check.py",
+          "description": "Boundary sweep at width-1/width/width+1 plus an empty-string edge case, not just the single visible exact-width input."
+        }
+      ]
+    },
+    {
+      "id": "assertion-config-fallback-default",
+      "category": "assertion",
+      "path": "cases/assertion_config_fallback_default",
+      "command": ["pytest", "-q"],
+      "failing_test": "test_config.py::test_missing_key_returns_sentinel",
+      "reference_repair": {
+        "patch": "reference/fix.patch"
+      },
+      "execution": {
+        "python_version": "3.11+",
+        "dependency_spec": null,
+        "install_procedure": null,
+        "environment_info": "pure Python stdlib, no external dependencies, no network access required",
+        "reproducibility_check_version": "pilot-5x-v1"
+      },
+      "source": {
+        "type": "synthetic",
+        "source_group_id": "synthetic:config-fallback-standalone",
+        "repository_size": {
+          "loc": 2,
+          "file_count": 2
+        }
+      },
+      "curation": {
+        "status": "accepted",
+        "rejection_reason": null,
+        "dedup_cluster_id": "synthetic:config-fallback-standalone",
+        "fold": "unassigned",
+        "contamination_risk": {
+          "flag": "not_applicable",
+          "notes": "synthetic, authored for Renacir; no upstream history to be contaminated by"
+        }
+      },
+      "independent_checks": [
+        {
+          "path": "reference/independent_check.py",
+          "description": "Verifies the present-key path is unaffected by the fallback fix, and that a different missing key also gets the sentinel."
+        }
+      ]
+    },
+    {
+      "id": "import-reportpkg-missing-reexport",
+      "category": "import",
+      "path": "cases/import_reportpkg_missing_reexport",
+      "command": ["pytest", "-q"],
+      "failing_test": "test_reportpkg.py::test_generate_report_formats_title",
+      "reference_repair": {
+        "patch": "reference/fix.patch"
+      },
+      "execution": {
+        "python_version": "3.11+",
+        "dependency_spec": null,
+        "install_procedure": null,
+        "environment_info": "pure Python stdlib, no external dependencies, no network access required",
+        "reproducibility_check_version": "pilot-5x-v1"
+      },
+      "source": {
+        "type": "synthetic",
+        "source_group_id": "synthetic:reportpkg-template",
+        "repository_size": {
+          "loc": 9,
+          "file_count": 4
+        }
+      },
+      "curation": {
+        "status": "accepted",
+        "rejection_reason": null,
+        "dedup_cluster_id": "synthetic:reportpkg-template",
+        "fold": "unassigned",
+        "contamination_risk": {
+          "flag": "not_applicable",
+          "notes": "synthetic, authored for Renacir; no upstream history to be contaminated by"
+        }
+      },
+      "independent_checks": [
+        {
+          "path": "reference/independent_check.py",
+          "description": "Verifies the re-exported name is the same object as reportpkg.core.generate_report (not a reimplementation) and is call-site compatible."
+        }
+      ]
+    },
+    {
+      "id": "import-reportpkg-bad-local-import",
+      "category": "import",
+      "path": "cases/import_reportpkg_bad_local_import",
+      "command": ["pytest", "-q"],
+      "failing_test": "test_reportpkg.py::test_generate_report_formats_title",
+      "reference_repair": {
+        "patch": "reference/fix.patch"
+      },
+      "execution": {
+        "python_version": "3.11+",
+        "dependency_spec": null,
+        "install_procedure": null,
+        "environment_info": "pure Python stdlib, no external dependencies, no network access required",
+        "reproducibility_check_version": "pilot-5x-v1"
+      },
+      "source": {
+        "type": "synthetic",
+        "source_group_id": "synthetic:reportpkg-template",
+        "repository_size": {
+          "loc": 9,
+          "file_count": 4
+        }
+      },
+      "curation": {
+        "status": "accepted",
+        "rejection_reason": null,
+        "dedup_cluster_id": "synthetic:reportpkg-template",
+        "fold": "unassigned",
+        "contamination_risk": {
+          "flag": "not_applicable",
+          "notes": "synthetic, authored for Renacir; no upstream history to be contaminated by"
+        }
+      },
+      "independent_checks": [
+        {
+          "path": "reference/independent_check.py",
+          "description": "Verifies the repaired generate_report() actually delegates to the real helpers module (not a stub) and works across repeated calls."
+        }
+      ]
+    },
+    {
+      "id": "import-reportpkg-broken-init",
+      "category": "import",
+      "path": "cases/import_reportpkg_broken_init",
+      "command": ["pytest", "-q"],
+      "failing_test": "test_reportpkg.py::test_generate_report_formats_title",
+      "reference_repair": {
+        "patch": "reference/fix.patch"
+      },
+      "execution": {
+        "python_version": "3.11+",
+        "dependency_spec": null,
+        "install_procedure": null,
+        "environment_info": "pure Python stdlib, no external dependencies, no network access required",
+        "reproducibility_check_version": "pilot-5x-v1"
+      },
+      "source": {
+        "type": "synthetic",
+        "source_group_id": "synthetic:reportpkg-template",
+        "repository_size": {
+          "loc": 9,
+          "file_count": 4
+        }
+      },
+      "curation": {
+        "status": "accepted",
+        "rejection_reason": null,
+        "dedup_cluster_id": "synthetic:reportpkg-template",
+        "fold": "unassigned",
+        "contamination_risk": {
+          "flag": "not_applicable",
+          "notes": "synthetic, authored for Renacir; no upstream history to be contaminated by"
+        }
+      },
+      "independent_checks": [
+        {
+          "path": "reference/independent_check.py",
+          "description": "Verifies the package imports cleanly after repair and every name still declared in __all__ resolves, guarding against an over-broad repair."
+        }
+      ]
     }
   ]
 }

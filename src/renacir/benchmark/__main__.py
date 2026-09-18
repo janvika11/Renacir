@@ -23,7 +23,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     exit_code = 0
     for case in cases:
         result = evaluate_case(case)
-        if not result.reproduced_as_expected:
+        if not result.reproduced_as_expected or not result.independent_checks_passed:
             exit_code = 1
         print(
             json.dumps(
@@ -32,6 +32,11 @@ def cmd_run(args: argparse.Namespace) -> int:
                     "pre_patch_passed": result.pre_patch_passed,
                     "post_patch_passed": result.post_patch_passed,
                     "reproduced_as_expected": result.reproduced_as_expected,
+                    "independent_checks": [
+                        {"path": r.path, "passed": r.passed}
+                        for r in result.independent_check_results
+                    ],
+                    "independent_checks_passed": result.independent_checks_passed,
                 }
             )
         )

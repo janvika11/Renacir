@@ -1,10 +1,15 @@
 import json
 
 from renacir.benchmark.context import ModelFacingContext, build_model_facing_context
-from renacir.benchmark.discovery import DEFAULT_MANIFEST_PATH, discover_cases
+from renacir.benchmark.discovery import (
+    DEFAULT_BENCHMARK_ROOT,
+    DEFAULT_MANIFEST_PATH,
+    discover_cases,
+)
 from renacir.benchmark.models import (
     ContaminationRisk,
     CurationMetadata,
+    IndependentCheck,
     ReferenceRepair,
     SourceMetadata,
 )
@@ -14,6 +19,7 @@ TIER_C_AND_D_FIELD_NAMES = (
     | set(SourceMetadata.model_fields)
     | set(ContaminationRisk.model_fields)
     | set(ReferenceRepair.model_fields)
+    | set(IndependentCheck.model_fields)
 )
 
 
@@ -28,6 +34,28 @@ def test_build_model_facing_context_does_not_touch_reference_repair_or_curation(
         assert not hasattr(context, "reference_repair")
         assert not hasattr(context, "curation")
         assert not hasattr(context, "source")
+        assert not hasattr(context, "independent_checks")
+
+
+def test_independent_check_paths_never_appear_in_model_facing_context():
+    for case in discover_cases():
+        context = build_model_facing_context(case)
+        serialized = json.dumps(context.model_dump())
+
+        for check in case.independent_checks:
+            assert check.path not in serialized
+            assert check.description not in serialized
+
+
+def test_staged_case_never_contains_reference_directory():
+    from renacir.benchmark.runner import staged_case
+
+    for case in discover_cases():
+        with staged_case(case, DEFAULT_BENCHMARK_ROOT) as staged:
+            assert not (staged / "reference").exists(), (
+                f"{case.id}: reference/ (Tier D) must not be present in the staged, "
+                "model-visible directory tree"
+            )
 
 
 def test_model_facing_context_serialization_excludes_forbidden_keys():

@@ -1,0 +1,10 @@
+diff --git a/billing.py b/billing.py
+index 6567e4d..e407a2f 100644
+--- a/billing.py
++++ b/billing.py
+@@ -1,4 +1,4 @@
+ def calculate_discount(is_member, cart_total):
+-    if is_member and cart_total >= 100:
++    if is_member or cart_total >= 100:
+         return 0.1
+     return 0.0

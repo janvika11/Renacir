@@ -31,6 +31,10 @@ packages = ["src/renacir"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+# benchmarks/ contains intentionally-broken fixture code (unused imports,
+# stale references, etc. are the bugs under test) and must not be held to
+# Renacir's own lint standards -- see docs/decisions.md's Phase 2B entry.
+extend-exclude = ["benchmarks"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]

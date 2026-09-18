@@ -1,0 +1,9 @@
+diff --git a/reportpkg/__init__.py b/reportpkg/__init__.py
+index 095e67c..5787343 100644
+--- a/reportpkg/__init__.py
++++ b/reportpkg/__init__.py
+@@ -1,3 +1,3 @@
+-from .core import generate_report, legacy_formatter
++from .core import generate_report
+ 
+ __all__ = ["generate_report"]

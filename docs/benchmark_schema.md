@@ -1,10 +1,10 @@
 # Benchmark Schema and Information Boundaries
 
-**Status: Phase 2A infrastructure, 2026-09-18.** Documents the manifest schema and the four
-information tiers introduced by the Phase 2 curation methodology
-(`docs/research_protocol.md`, `docs/decisions.md`). This is infrastructure, not curated data
-— the benchmark still contains only the 2 original synthetic cases. No real-world case has
-been curated; no dataset has been imported.
+**Status: Phase 2A/2B, 2026-09-18.** Documents the manifest schema and the four information
+tiers introduced by the Phase 2 curation methodology (`docs/research_protocol.md`,
+`docs/decisions.md`). Phase 2A built the schema; Phase 2B used it to grow the benchmark from
+2 to 9 synthetic pilot cases. **This is still a pilot, not the final research benchmark** —
+no real-world case has been curated; no dataset has been imported.
 
 ## Terminology: reference repair, not gold patch
 
@@ -29,16 +29,28 @@ correctness taxonomy already frozen in `docs/research_protocol.md` §7.
 | **A — execution** | Needed to run the case at all | `manifest.json`, per case: `execution` block | `python_version`, `dependency_spec`, `install_procedure`, `environment_info`, `reproducibility_check_version` |
 | **B — potentially model-facing** | What a real CI repair system would legitimately see at failure time | Built by explicit allowlist, `renacir.benchmark.context.ModelFacingContext` — **not** simply "whatever isn't in tier D" | `failing_test`, `command`, `category`, `repository_identity` (currently always `None` — see below) |
 | **C — evaluator-only** | Used for scoring/statistical analysis; never shown to a model | `manifest.json`, per case: `source`, `curation` blocks | `source_group_id`, `repository_size`, `curation.status`, `dedup_cluster_id`, `fold`, `contamination_risk` |
-| **D — reference-repair-only** | Strictly hidden, no exceptions | Each case's `reference/` directory | `reference_repair.patch`, (future) `provenance.json`, `held_out_test.py`, differential-check fixtures |
+| **D — reference-repair-only** | Strictly hidden, no exceptions | Each case's `reference/` directory | `reference_repair.patch`, `independent_check.py` (Phase 2B), (future) `provenance.json` |
 
-**Enforcement is by type, not by file location alone.** `renacir.benchmark.context.py`
-defines `ModelFacingContext` as an explicit allowlist — it has no field that overlaps with
-`SourceMetadata`, `CurationMetadata`, `ContaminationRisk`, or `ReferenceRepair` (checked by
+**Enforcement is by type, not by file location alone — and, as of Phase 2B, also by staging
+behavior.** `renacir.benchmark.context.py` defines `ModelFacingContext` as an explicit
+allowlist — it has no field that overlaps with `SourceMetadata`, `CurationMetadata`,
+`ContaminationRisk`, `ReferenceRepair`, or `IndependentCheck` (checked by
 `tests/benchmark/test_context.py`), and `build_model_facing_context()` reads only
 `BenchmarkCase.failing_test`, `.command`, and `.category`. This exists so that when a future
 Collector is implemented, it has a fixed shape to build its output into, rather than passing
 an arbitrary benchmark dictionary forward and hoping the sensitive fields are never read.
 Collector does not exist yet; nothing in this repository calls or depends on one.
+
+**Discovered and fixed during Phase 2B**: `renacir.benchmark.runner.staged_case` originally
+copied a case's *entire* directory — including `reference/` — into the isolated temp
+directory each test run executes in. This never affected reported pass/fail results (nothing
+under `reference/` matched pytest's test-discovery pattern), but it meant Tier D material was
+physically present in the same directory tree a future Collector would naturally scan,
+undermining the tiering independent of what `ModelFacingContext` itself exposes. Fixed by
+excluding `reference/` from the staged copy entirely; the reference-repair patch is now read
+directly from the original case directory when applied, and independent-check files are
+copied in individually, one at a time, only *after* the repair has already been applied.
+Verified by `tests/benchmark/test_context.py::test_staged_case_never_contains_reference_directory`.
 
 ## Repository identity: an explicit, unresolved design variable
 
@@ -65,19 +77,44 @@ repository claims that passing this check proves determinism.
 
 `execution.python_version`, `.dependency_spec`, `.install_procedure`, and `.environment_info`
 record what a *case* needs to run — which may differ from Renacir's own Python 3.11+
-requirement. Both current fixtures are pure-stdlib and need nothing beyond Python 3.11+, but
+requirement. All 9 current fixtures are pure-stdlib and need nothing beyond Python 3.11+, but
 a future real case (a historical bugfix commit) may require an older, pinned Python version
 and dependency set. **This means the eventual Validator sandbox (Phase 3) will likely need
 case-specific runtime images or environments, not one fixed Renacir-wide image** — recorded
 here as a forward implication for that design, not solved now.
 
+## Independent correctness checks (Phase 2B)
+
+`IndependentCheck` (`path`, `description`) records an evaluator-only test beyond the
+originally-failing one — a boundary sweep, a cross-call state check, an import-signature
+check, etc., per `docs/research_protocol.md` §7.1(c). `path` always points inside
+`reference/` (Tier D). `renacir.benchmark.runner.run_independent_checks` copies each check
+file into the staged directory individually, only after the reference repair has already been
+applied, and runs it by explicit filename (`pytest <file> -q`) — never relying on pytest's
+ordinary auto-discovery, so a check file is never accidentally collected during the pre-repair
+run or by a bare `pytest -q` elsewhere. 7 of the 9 current cases have one; the 2 original
+Phase 1 cases do not yet (a recorded gap, not an inconsistency — see
+`docs/research_protocol.md`'s unresolved item 2 on held-out-test coverage).
+
 ## Candidate curation records
 
 `benchmarks/candidates.json` (schema in `renacir.benchmark.curation`) holds
-`CandidateCurationRecord` entries for real-world candidates that were reviewed — accepted or
-rejected — kept structurally separate from `manifest.json`. A rejected candidate has no path,
-command, or reference repair; it is never required to become an executable `BenchmarkCase`.
-Currently empty: no real-world candidate has been reviewed yet.
+`CandidateCurationRecord` entries for candidates that were reviewed — accepted or rejected —
+kept structurally separate from `manifest.json`. A rejected candidate has no path, command, or
+reference repair; it is never required to become an executable `BenchmarkCase`. As of Phase
+2B, holds one record: a *synthetic* case (`assertion-tax-wrong-constant`) designed, reviewed
+against the final deduplication check, and rejected as substantially redundant before being
+built — demonstrating the mechanism works for design-stage rejections, not only real-world
+sourcing rejections. No real-world candidate has been reviewed yet.
+
+## Benchmark fixtures are excluded from Renacir's own lint config (Phase 2B)
+
+Discovered while adding `import-reportpkg-broken-init`: its intentional bug (`__init__.py`
+importing a symbol that no longer exists) is also, incidentally, an unused-import lint error
+under Renacir's own ruff rules (`F401`), since the earlier 8 fixtures' bugs happened not to
+trip any selected rule. Fixtures are deliberately-broken sample code under test, not code that
+should meet the project's own lint bar. Fixed by adding `extend-exclude = ["benchmarks"]` to
+`[tool.ruff]` in `pyproject.toml`, rather than reshaping a fixture's bug to dodge a linter.
 
 ## What remains unresolved (unaffected by this schema)
 

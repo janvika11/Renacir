@@ -1,0 +1,8 @@
+diff --git a/config.py b/config.py
+index 1fa289e..180cdb7 100644
+--- a/config.py
++++ b/config.py
+@@ -1,2 +1,2 @@
+ def get_setting(settings, key):
+-    return settings.get(key, "")
++    return settings.get(key, "unset")

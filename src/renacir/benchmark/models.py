@@ -38,6 +38,21 @@ class ReferenceRepair(BaseModel):
     patch: str
 
 
+class IndependentCheck(BaseModel):
+    """Tier D. An evaluator-only correctness check beyond the originally
+    failing test — held-out tests, boundary sweeps, or differential/behavioral
+    checks, per `docs/research_protocol.md` §7.1(c). `path` is relative to the
+    case directory (e.g. `"reference/independent_check.py"`) and always lives
+    under `reference/`, so it is never present in a case's staged directory
+    during the pre-repair or post-repair test runs — only copied in
+    deliberately, after the reference repair has already been applied, by
+    `renacir.benchmark.runner.run_independent_checks`.
+    """
+
+    path: str
+    description: str
+
+
 class ExecutionMetadata(BaseModel):
     """Tier A. What's needed to reproduce the case's own runtime, which may
     differ from Renacir's own Python 3.11+ requirement — see
@@ -96,6 +111,7 @@ class BenchmarkCase(BaseModel):
     execution: ExecutionMetadata
     source: SourceMetadata
     curation: CurationMetadata
+    independent_checks: list[IndependentCheck] = []
 
 
 class BenchmarkManifest(BaseModel):

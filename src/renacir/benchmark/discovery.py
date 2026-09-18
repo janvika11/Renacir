@@ -40,3 +40,8 @@ def validate_case_paths(case: BenchmarkCase, benchmark_root: Path = DEFAULT_BENC
     test_file = case.failing_test.split("::", 1)[0]
     if not (directory / test_file).is_file():
         raise FileNotFoundError(f"{case.id}: failing test file not found: {directory / test_file}")
+
+    for check in case.independent_checks:
+        check_path = directory / check.path
+        if not check_path.is_file():
+            raise FileNotFoundError(f"{case.id}: independent check not found: {check_path}")

@@ -1,0 +1,6 @@
+{
+  "id": "assertion-config-fallback-default",
+  "category": "assertion",
+  "description": "get_setting() falls back to an empty string when a key is missing instead of the intended 'unset' sentinel, making a missing setting indistinguishable from one explicitly set to an empty value.",
+  "root_cause": "wrong fallback/default literal for a missing dictionary key"
+}

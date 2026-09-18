@@ -1,4 +1,18 @@
 {
   "schema_version": 1,
-  "records": []
+  "records": [
+    {
+      "candidate_id": "assertion-tax-wrong-constant",
+      "source": "synthetic",
+      "upstream_identifier": null,
+      "review_date": "2026-09-18",
+      "decision": "rejected",
+      "rejection_reasons": [
+        "substantially redundant with accepted case assertion-average-off-by-one: same root-cause class (wrong numeric literal in a single-expression arithmetic computation), same failure shape (scalar function returns wrong magnitude), same diagnostic information required (compare a one-line formula to spec), same repair operation (edit one numeric token), same correctness-check design (differential sweep over generated inputs) -- see Phase 2B final deduplication check, docs/decisions.md"
+      ],
+      "license_notes": null,
+      "reproducibility_notes": "not built; rejected during design review before fixture creation",
+      "benchmark_case_id": null
+    }
+  ]
 }

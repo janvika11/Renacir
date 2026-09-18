@@ -1,0 +1,6 @@
+{
+  "id": "assertion-truncate-empty-edge-case",
+  "category": "assertion",
+  "description": "truncate_summary() uses '<' instead of '<=' when checking text length against the target width, so text exactly at the boundary is truncated and has '...' appended even though it should be returned unchanged.",
+  "root_cause": "boundary comparison operator (< instead of <=) in a length check"
+}

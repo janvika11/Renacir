@@ -1,0 +1,6 @@
+{
+  "id": "import-reportpkg-missing-reexport",
+  "category": "import",
+  "description": "reportpkg/__init__.py never re-exports generate_report from core.py, so 'from reportpkg import generate_report' fails with ImportError even though 'import reportpkg' succeeds and reportpkg.core.generate_report works fine directly.",
+  "root_cause": "missing re-export in a package's __init__.py"
+}

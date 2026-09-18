@@ -1,0 +1,6 @@
+{
+  "id": "import-reportpkg-bad-local-import",
+  "category": "import",
+  "description": "reportpkg/core.py's generate_report() does a local 'import helpers' (an absolute, top-level import) instead of 'from . import helpers', so importing reportpkg and even the name generate_report both succeed, but calling generate_report() raises ModuleNotFoundError.",
+  "root_cause": "incorrect module path (absolute instead of relative) in a local import"
+}
