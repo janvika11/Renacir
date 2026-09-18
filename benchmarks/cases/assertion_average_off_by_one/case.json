@@ -1,0 +1,6 @@
+{
+  "id": "assertion-average-off-by-one",
+  "category": "assertion",
+  "description": "average() divides by len(nums) - 1 instead of len(nums), silently producing a wrong result instead of crashing, caught only by the test's assertion.",
+  "root_cause": "off-by-one error in the denominator of average()"
+}

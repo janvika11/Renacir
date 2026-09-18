@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "id": "assertion-average-off-by-one",
+      "category": "assertion",
+      "path": "cases/assertion_average_off_by_one",
+      "command": ["pytest", "-q"],
+      "failing_test": "test_stats.py::test_average_of_three",
+      "expected_repair": {
+        "patch": "expected/fix.patch"
+      }
+    },
+    {
+      "id": "import-renamed-helper",
+      "category": "import",
+      "path": "cases/import_renamed_helper",
+      "command": ["pytest", "-q"],
+      "failing_test": "test_main.py::test_compute",
+      "expected_repair": {
+        "patch": "expected/fix.patch"
+      }
+    }
+  ]
+}

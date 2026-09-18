@@ -10,9 +10,13 @@ requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
+    "pydantic>=2.8",
     "pydantic-settings>=2.4",
     "python-dotenv>=1.0",
 ]
+
+[project.scripts]
+renacir-benchmark = "renacir.benchmark.__main__:main"
 
 [project.optional-dependencies]
 dev = [
@@ -33,3 +37,4 @@ select = ["E", "F", "I", "UP"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "--ignore=benchmarks"

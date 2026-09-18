@@ -1,0 +1,10 @@
+diff --git a/main.py b/main.py
+index d700386..05f4300 100644
+--- a/main.py
++++ b/main.py
+@@ -1,4 +1,4 @@
+-from helpers import helper
++from helpers import helper_v2 as helper
+ 
+ 
+ def compute(x):

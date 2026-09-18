@@ -98,3 +98,40 @@ The confidence gate is now the primary object of study. The evaluation plan requ
 - Calibration curves / coverage-vs-risk tradeoffs for the gate.
 - Comparison of **at least two distinct gating strategies** (e.g., a flat confidence threshold vs. a conformal/coverage-guaranteed approach), not just one threshold rule.
 - An explicit plan to report honestly if the gate does **not** calibrate well — a negative or mixed result here is a legitimate, reportable finding, not something to hide or paper over.
+
+## 2026-09-18 — Phase 1 benchmark/fixture infrastructure complete (preliminary)
+
+Built `benchmarks/` (manifest, per-case fixtures, ground-truth unified-diff patches) and
+`src/renacir/benchmark/` (pydantic manifest schema, discovery, isolated-subprocess runner,
+CLI), per the approved Phase 1 proposal. Collector and Diagnoser — the rest of Phase 1 —
+are not started; this entry covers the fixture/benchmark half only.
+
+**Status is explicitly preliminary:** the benchmark contains **2 synthetic cases** (one
+assertion failure, one import failure) — proof that the manifest/discovery/runner/CLI
+machinery works end-to-end, not a claim about benchmark coverage. `EVALUATION_PLAN.md`'s
+~30–50 case target is unmet and unaffected by this entry; growing the case count is separate,
+ongoing work.
+
+**Verified before marking complete:**
+- Both cases deterministically fail pre-patch and pass post-patch (`renacir-benchmark run`,
+  repeated 3x, plus manual `pytest -q` inside each fixture directory) — checksums of the
+  fixture source files confirmed the isolated-subprocess runner never mutates the originals.
+- The manifest schema (`renacir.benchmark.models`) rejects malformed input (missing required
+  field, invalid category literal), not just accepts valid data.
+- `renacir.benchmark.discovery.validate_case_paths` rejects a case pointing at a nonexistent
+  directory.
+- The CLI's `list`, `run` (all cases), `run <id>`, and unknown-id error path all behave
+  correctly.
+- Full `pytest`, `ruff check .`, and `ruff format --check .` all pass.
+
+**Discrepancy found and fixed, not silently:** the initial implementation's isolation of
+`benchmarks/` from Renacir's own test collection relied only on `testpaths = ["tests"]` in
+`pyproject.toml`. `testpaths` is a *default*, not an *exclusion* — it's dropped the moment any
+path is passed explicitly. `pytest .` (a plausible IDE or CI-wrapper invocation) collected the
+import fixture's intentionally-broken code and crashed the whole run with an `ImportError`
+during collection, rather than a clean, scoped test failure. Fixed by adding
+`addopts = "--ignore=benchmarks"` to `[tool.pytest.ini_options]`. Verified after the fix:
+bare `pytest` (9 passed) and `pytest .` (9 collected, no crash) are both safe; deliberately
+targeting a fixture directly (`pytest benchmarks`, or `cd`-ing into a fixture and running
+`pytest -q` as the README's manual-reproduction workflow instructs) still surfaces the
+fixture's real failure, as intended — the fix only closes the *accidental* collection path.

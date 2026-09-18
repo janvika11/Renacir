@@ -1,0 +1,6 @@
+{
+  "id": "import-renamed-helper",
+  "category": "import",
+  "description": "helpers.py was refactored to export helper_v2, but main.py still imports the old name helper, raising ImportError before any test logic runs.",
+  "root_cause": "stale import name after a rename in the dependency module"
+}
