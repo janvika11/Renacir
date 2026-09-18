@@ -17,6 +17,14 @@ class CaseResult:
 
     @property
     def reproduced_as_expected(self) -> bool:
+        """True iff this single run failed pre-repair and passed post-repair.
+
+        One run only. Curation-time reproducibility checking (repeating this
+        several times before accepting a case) is a separate procedure — see
+        `execution.reproducibility_check_version` in the manifest and
+        `docs/benchmark_schema.md`. Neither this property nor that field is a
+        statistical guarantee of non-flakiness, only a pragmatic pilot rule.
+        """
         return self.pre_patch_passed is False and self.post_patch_passed is True
 
 
@@ -39,8 +47,8 @@ def run_tests(case: BenchmarkCase, cwd: Path) -> subprocess.CompletedProcess:
     )
 
 
-def apply_expected_patch(case: BenchmarkCase, cwd: Path) -> None:
-    patch_path = (cwd / case.expected_repair.patch).resolve()
+def apply_reference_repair(case: BenchmarkCase, cwd: Path) -> None:
+    patch_path = (cwd / case.reference_repair.patch).resolve()
     subprocess.run(
         ["git", "apply", str(patch_path)],
         cwd=cwd,
@@ -53,7 +61,7 @@ def apply_expected_patch(case: BenchmarkCase, cwd: Path) -> None:
 def evaluate_case(case: BenchmarkCase, benchmark_root: Path = DEFAULT_BENCHMARK_ROOT) -> CaseResult:
     with staged_case(case, benchmark_root) as staged:
         pre_patch = run_tests(case, staged)
-        apply_expected_patch(case, staged)
+        apply_reference_repair(case, staged)
         post_patch = run_tests(case, staged)
 
     return CaseResult(

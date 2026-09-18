@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "cases": [
     {
       "id": "assertion-average-off-by-one",
@@ -7,8 +7,33 @@
       "path": "cases/assertion_average_off_by_one",
       "command": ["pytest", "-q"],
       "failing_test": "test_stats.py::test_average_of_three",
-      "expected_repair": {
-        "patch": "expected/fix.patch"
+      "reference_repair": {
+        "patch": "reference/fix.patch"
+      },
+      "execution": {
+        "python_version": "3.11+",
+        "dependency_spec": null,
+        "install_procedure": null,
+        "environment_info": "pure Python stdlib, no external dependencies, no network access required",
+        "reproducibility_check_version": "pilot-5x-v1"
+      },
+      "source": {
+        "type": "synthetic",
+        "source_group_id": "synthetic:assertion-off-by-one-denominator",
+        "repository_size": {
+          "loc": 2,
+          "file_count": 2
+        }
+      },
+      "curation": {
+        "status": "accepted",
+        "rejection_reason": null,
+        "dedup_cluster_id": "synthetic:assertion-off-by-one-denominator",
+        "fold": "unassigned",
+        "contamination_risk": {
+          "flag": "not_applicable",
+          "notes": "synthetic, authored for Renacir; no upstream history to be contaminated by"
+        }
       }
     },
     {
@@ -17,8 +42,33 @@
       "path": "cases/import_renamed_helper",
       "command": ["pytest", "-q"],
       "failing_test": "test_main.py::test_compute",
-      "expected_repair": {
-        "patch": "expected/fix.patch"
+      "reference_repair": {
+        "patch": "reference/fix.patch"
+      },
+      "execution": {
+        "python_version": "3.11+",
+        "dependency_spec": null,
+        "install_procedure": null,
+        "environment_info": "pure Python stdlib, no external dependencies, no network access required",
+        "reproducibility_check_version": "pilot-5x-v1"
+      },
+      "source": {
+        "type": "synthetic",
+        "source_group_id": "synthetic:import-stale-name-after-rename",
+        "repository_size": {
+          "loc": 3,
+          "file_count": 3
+        }
+      },
+      "curation": {
+        "status": "accepted",
+        "rejection_reason": null,
+        "dedup_cluster_id": "synthetic:import-stale-name-after-rename",
+        "fold": "unassigned",
+        "contamination_risk": {
+          "flag": "not_applicable",
+          "notes": "synthetic, authored for Renacir; no upstream history to be contaminated by"
+        }
       }
     }
   ]

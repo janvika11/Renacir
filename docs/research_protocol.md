@@ -417,16 +417,21 @@ the exact model version + pricing-date logged (§15).
 
 Two sourcing tracks:
 - **(a) Synthetic**: hand-injected bugs in small authored pure-Python repos, packaged exactly
-  as the 2 current fixtures (`case.json` + manifest entry + `expected/fix.patch`).
+  as the 2 current fixtures (`case.json` + manifest entry + `reference/fix.patch`).
 - **(b) Real**: mined historical bugfix commits from open-source PyTest repos — a commit `C`
   qualifies if checking out `C`'s parent reproducibly fails the test(s) `C` fixes, `C`'s own
-  diff serves as the gold patch, and the case otherwise meets §5/§6. Requires manual triage
-  per candidate (labor-intensive; not automatable beyond initial candidate search).
+  diff serves as the reference repair (not the unique correct fix — see §7), and the case
+  otherwise meets §5/§6. Requires manual triage per candidate (labor-intensive; not
+  automatable beyond initial candidate search).
 
-`case.json` schema is extended (in a future implementation step, not by this protocol
-freeze) to require: `source: "synthetic" | "real"`, `origin` (repo + commit URL, real cases
-only), `held_out_test: bool`, `fold: "dev" | "calibration" | "test"` (§13). Both tracks use
-identical downstream tooling regardless of provenance.
+**Schema implemented as of Phase 2A** (`docs/benchmark_schema.md`, `docs/decisions.md`):
+`manifest.json` per case now carries `execution` (runtime/environment metadata, case-specific
+— not assumed to match Renacir's own Python 3.11+ requirement), `source` (`type`:
+`"synthetic" | "real"`, plus `source_group_id` for repo/template-level grouping — see §13),
+and `curation` (`status`, `fold` placeholder, `contamination_risk`) blocks, superseding this
+section's earlier, simpler four-field sketch. Both tracks use identical downstream tooling
+regardless of provenance. Rejected real-world candidates are recorded separately in
+`benchmarks/candidates.json`, not forced into the executable manifest.
 
 **Target real:synthetic ratio is not fixed here** — see unresolved item 1.
 

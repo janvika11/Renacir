@@ -45,12 +45,13 @@ authoritative source.
   pre-existing corpus at this exact scope doesn't appear to exist (see `docs/decisions.md`). A
   filtered pytest-only subset of an existing benchmark (e.g. SWE-bench-lite) is a possible
   supplement, evaluated for fit before use, not assumed.
-- Each case records failing repo state, failing test output, ground-truth fix, repo identity
-  (needed for the exchangeability check below), source (synthetic vs. real), whether an
-  independent held-out correctness check exists, and its repository-level split role —
-  schema and rationale frozen in `docs/research_protocol.md` §5, §11–§13. (Not yet
-  implemented in `benchmarks/manifest.json`'s current schema — that extension is future
-  implementation work, not part of this protocol freeze.)
+- Each case records failing repo state, failing test output, a **reference repair** (not
+  necessarily the unique correct fix — see `docs/research_protocol.md` §7), repo/source-group
+  identity (needed for the exchangeability check below), source (synthetic vs. real), and its
+  repository-level split role — schema implemented in `benchmarks/manifest.json` as of Phase
+  2A; see `docs/benchmark_schema.md` for the full field reference. Independent
+  held-out/differential correctness checks remain per-case optional, not yet constructed for
+  either current fixture.
 - Curated starting in Phase 1, not after the pipeline is built — benchmark feasibility is
   treated as the primary project risk.
 

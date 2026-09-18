@@ -248,3 +248,85 @@ implemented. No benchmark code was modified. No dependencies were added. Only
 `docs/literature_review.md` (new), `docs/research_protocol.md`, and this file were changed;
 `PROJECT_SPEC.md`, `ARCHITECTURE.md`, and `EVALUATION_PLAN.md` were reviewed for factual
 consistency and required no changes.
+
+## 2026-09-18 — Phase 2 benchmark-curation methodology approved (with revisions); Phase 2A schema migration and curation infrastructure complete
+
+The Phase 2 benchmark-curation methodology (expanding the 2-case synthetic benchmark toward
+~30–50 cases, two source tracks — controlled synthetic and reproducible real-world) was
+proposed, reviewed, and approved **with eight corrections** before any implementation:
+
+1. Removed the hard ≤5,000-LOC/≤50-file repository-size inclusion gate — replaced with
+   task-level tractability criteria (reproducible, bounded test scope, localized repair,
+   fits the eventual sandbox budget). Repo size is now descriptive metadata only.
+2. Replaced "gold patch"/"single agreed gold patch" with **reference repair** for the
+   schema and curation vocabulary: a known-good state useful for provenance and
+   correctness-check construction, explicitly not claimed to be the only valid repair.
+3. Removed the blanket "multi-file refactor" rejection rule — replaced with a localization
+   criterion (changed files within the failing test's dependency closure), with any
+   file-count number labeled a pragmatic pilot heuristic, not a research claim.
+4. Removed the implicit Python-3.11-for-every-case requirement — real cases record their own
+   runtime/dependency/install requirements; Renacir's own 3.11+ requirement is separate.
+5. Revised the leakage architecture so repository/library **identity** exposure to a future
+   model-facing context is an explicit, unresolved experimental/design variable (not
+   auto-hidden) — while provenance and reference-repair data remain strictly hidden always.
+6. Relabeled the ≥5-rerun reproducibility rule explicitly as a versioned pilot heuristic, not
+   a statistical non-flakiness guarantee.
+7. Defined an explicit four-tier field classification (execution / potentially model-facing /
+   evaluator-only / reference-repair-only) with enforcement by typed allowlist, not file
+   location alone.
+8. Replaced `repository_id = "synthetic:<case-id>"` (one singleton group per synthetic case)
+   with `source_group_id`, shared across synthetic cases derived from the same template,
+   unified with the same field's role for real cases.
+
+**Phase 2A (this entry) implements the schema migration and curation infrastructure only —
+no cases were curated, no dataset was downloaded, no repository was mined.**
+
+- `expected_repair`/`ExpectedRepair`/each case's `expected/` directory renamed to
+  `reference_repair`/`ReferenceRepair`/`reference/` throughout (manifest, Pydantic models,
+  discovery, runner, tests, fixtures, README). No compatibility alias retained — only 2
+  internal fixtures existed and there are no external schema consumers. Directory renames
+  used `git mv` to preserve history.
+- `benchmarks/manifest.json` bumped to `schema_version: 2` with `execution`, `source`, and
+  `curation` metadata blocks per case, per the approved schema (full reference:
+  `docs/benchmark_schema.md`). `discovery.load_manifest` now rejects an unsupported
+  `schema_version` rather than silently accepting it.
+- New `src/renacir/benchmark/context.py`: `ModelFacingContext`, an explicit Tier-B allowlist
+  type with no field overlapping Tier C/D metadata, plus `build_model_facing_context()`
+  reading only `failing_test`/`command`/`category` from a case. `repository_identity` exists
+  as a field, defaulted to `None` — deliberately unresolved, per correction 5 above.
+  Collector does not exist and is not implemented; this only fixes the shape a future one
+  must build into.
+- New `src/renacir/benchmark/curation.py`: `CandidateCurationRecord`/`CandidateCurationLog`
+  for real-world candidate decisions (accepted and rejected), stored separately in the new
+  `benchmarks/candidates.json` — currently empty (`records: []`), since no real-world
+  candidate has been reviewed yet.
+- Both existing synthetic fixtures migrated to the new schema and given **distinct**
+  `source_group_id`s (`synthetic:assertion-off-by-one-denominator`,
+  `synthetic:import-stale-name-after-rename`) — they are genuinely different bug mechanisms,
+  not artificially split; future synthetic cases sharing a template are expected to share a
+  `source_group_id`.
+- New `docs/benchmark_schema.md`: the authoritative field reference and four-tier boundary
+  documentation, including the case-specific-runtime implication for the future Validator
+  (likely needs case-specific runtime images, not one fixed Renacir-wide image — recorded now
+  as a forward design note, not solved).
+- Minimal consistency fixes: `docs/research_protocol.md` §11 and `EVALUATION_PLAN.md`'s
+  benchmark-strategy bullet updated from "schema extension is future work" (now stale) to
+  reflect the implemented schema, using reference-repair language. `README.md`'s Benchmark
+  section updated to match.
+
+**Explicitly not claimed**: the benchmark is still 2 synthetic cases. Nothing about 30–50
+cases, real-world sourcing, or a specific real:synthetic ratio is claimed to exist.
+
+**Left unresolved, unaffected by this infrastructure work**: repository-level split scheme
+(LORO/grouped k-fold/fixed), real:synthetic ratio, exact sandbox resource/time limits,
+repository-identity exposure (now explicitly a design variable per correction 5, still
+undecided), calibration-summary methodology beyond ruling out naive ECE, conformal method
+choice, K repeated runs and aggregation policy — all exactly as open as recorded in
+`docs/research_protocol.md`.
+
+Verified before considering Phase 2A complete: full `pytest` suite passes (schema validation,
+malformed-metadata rejection, reference-repair loading, Tier B/C/D structural separation,
+rejected-candidate representability, both fixtures still fail-then-pass through the harness),
+`ruff check .` and `ruff format --check .` clean, `git diff --check` clean, benchmark CLI
+(`list`/`run`) exercised manually against the migrated schema. No Collector, Diagnoser,
+Patcher, Validator, Gatekeeper, or Orchestrator code was added. No dependencies were added.
