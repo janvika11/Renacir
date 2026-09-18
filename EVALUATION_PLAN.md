@@ -25,6 +25,10 @@ Per `docs/decisions.md`, the gate is built and evaluated baseline-first:
 
 ## Metrics
 
+Formal definitions, operational meaning, relevance, and limitations for every metric below
+are frozen in `docs/research_protocol.md` §10 — this section is a summary, not the
+authoritative source.
+
 - **Repair effectiveness:** repair success rate (patched code passes held-out tests, no
   regressions).
 - **Gate quality:** false-PR rate, escalation precision/recall, calibration curves /
@@ -41,8 +45,12 @@ Per `docs/decisions.md`, the gate is built and evaluated baseline-first:
   pre-existing corpus at this exact scope doesn't appear to exist (see `docs/decisions.md`). A
   filtered pytest-only subset of an existing benchmark (e.g. SWE-bench-lite) is a possible
   supplement, evaluated for fit before use, not assumed.
-- Each case records failing repo state, failing test output, ground-truth fix, and repo
-  identity (needed for the exchangeability check below).
+- Each case records failing repo state, failing test output, ground-truth fix, repo identity
+  (needed for the exchangeability check below), source (synthetic vs. real), whether an
+  independent held-out correctness check exists, and its repository-level split role —
+  schema and rationale frozen in `docs/research_protocol.md` §5, §11–§13. (Not yet
+  implemented in `benchmarks/manifest.json`'s current schema — that extension is future
+  implementation work, not part of this protocol freeze.)
 - Curated starting in Phase 1, not after the pipeline is built — benchmark feasibility is
   treated as the primary project risk.
 

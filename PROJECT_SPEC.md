@@ -18,7 +18,9 @@ Secondary:
 
 1. Build a minimal, safety-constrained repair pipeline for a narrow, well-defined class of
    Python/PyTest CI failures.
-2. Build a small, honestly-labeled benchmark of reproducible failures with known fixes.
+2. Build a small, honestly-labeled benchmark of reproducible failures with known fixes,
+   including — for a stated subset — an independent correctness check beyond the
+   originally-failing test (see `docs/research_protocol.md` §7).
 3. Design and evaluate a confidence gate that decides whether to propose a patch as a PR or
    escalate to a human.
 4. Compare four conditions (traditional reporting, single-agent, multi-agent ungated,

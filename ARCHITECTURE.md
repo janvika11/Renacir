@@ -29,10 +29,13 @@ Output: pass/fail for the target test, plus a regression flag if previously-pass
 now fail.
 
 **Gatekeeper**
-Input: Validator outcome, Diagnoser confidence, patch characteristics (diff size, files
-touched, retry count).
+Input: candidate gate signals — Validator outcome (always included), and, pending the
+ablation study in `docs/research_protocol.md` §9, diagnosis confidence and patch
+characteristics (diff size, files touched, retry count). Diagnoser confidence is not
+assumed calibrated; whether to include it as a gate input is an empirical question, not a
+settled design choice.
 Output: propose-as-PR or escalate-to-human, with the evidence trail behind the decision.
-This is the object of study — see `EVALUATION_PLAN.md`.
+This is the object of study — see `EVALUATION_PLAN.md` and `docs/research_protocol.md`.
 
 **Orchestrator**
 Sequences Collector → Diagnoser → Patcher → Validator → Gatekeeper and logs every

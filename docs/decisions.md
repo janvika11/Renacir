@@ -135,3 +135,43 @@ bare `pytest` (9 passed) and `pytest .` (9 collected, no crash) are both safe; d
 targeting a fixture directly (`pytest benchmarks`, or `cd`-ing into a fixture and running
 `pytest -q` as the README's manual-reproduction workflow instructs) still surfaces the
 fixture's real failure, as intended — the fix only closes the *accidental* collection path.
+
+## 2026-09-18 — Phase 1.5 research protocol frozen
+
+`docs/research_protocol.md` is frozen, defining the primary/secondary research questions,
+target population and scope, benchmark inclusion/exclusion criteria, the tier-1/tier-2/
+incorrect correctness taxonomy, the abstention/escalation definition, primary metrics
+(coverage, selective risk, the risk-coverage curve) and secondary metrics, Gatekeeper
+baselines and ablations, dataset construction methodology, synthetic-vs-real reporting
+policy, repository-level dev/calibration/test separation, repeated-run policy, logging
+requirements, the statistical analysis plan, threats to validity, data-leakage prevention,
+and explicit scope on what conclusions the eventual experiment can and cannot support — all
+before any of Collector, Diagnoser, Patcher, Validator, Gatekeeper, or Orchestrator is
+implemented.
+
+Two methodological corrections were made during review, before freezing:
+- Benchmark inclusion/exclusion criteria were decoupled from Collector's future retrieval
+  behavior. A case's validity is determined by the declared task population and scope
+  (`PROJECT_SPEC.md`), not by what a not-yet-built component would retrieve. A Collector
+  that fails to surface a needed file is a pipeline/retrieval failure to measure later, not
+  grounds to exclude the case now.
+- The tier-1/tier-2/incorrect correctness taxonomy was clarified to state explicitly that
+  correctness never requires syntactic/structural similarity to the gold patch — only
+  behavioral agreement (tests pass, no regression, plus one independent check). Multiple
+  semantically valid repairs may exist for a case.
+
+**Explicitly left unresolved by this freeze** (full list in `docs/research_protocol.md`'s
+"Unresolved methodological questions" section): calibration-summary methodology (ECE vs.
+Brier vs. alternatives), the repository-level split scheme (fixed split vs. leave-one-repo-
+out vs. grouped k-fold — repo-level grouping itself is frozen as a hard requirement, the
+scheme is not), the final diagnosis-accuracy metric, any conformal/split-conformal/
+jackknife+/CV+ method choice, the number of repeated runs (K) per case and its aggregation
+rule, and the real:synthetic benchmark case ratio. These require either the literature
+review or benchmark-scale data not yet available, and are deliberately not pre-decided here.
+
+Minimal consistency updates were made to `PROJECT_SPEC.md`, `ARCHITECTURE.md`, and
+`EVALUATION_PLAN.md` alongside this freeze (pointers to the protocol as the authoritative
+source for metric definitions, and softening `ARCHITECTURE.md`'s Gatekeeper-input wording so
+it no longer presupposes Diagnoser confidence is a settled gate input). No other files
+changed; no agent code was implemented; no dependencies were added; the literature review has
+not started.
