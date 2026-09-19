@@ -16,10 +16,17 @@ imports, or whatever the traceback itself references). See `docs/collector.md` f
 contract, context-selection rules, and information-boundary guarantees, including the
 retrospective-test-overlay handling for reconstructed real cases.
 
-**Diagnoser**
-Input: the Collector's output.
-Output: a root-cause hypothesis grounded in cited log/source lines, plus a stated confidence.
-Implementation: a single LLM call in v1 — no multi-step agent loop.
+**Diagnoser** — offline core implemented, Phase 4B (`src/renacir/diagnoser/`).
+Input: an explicit `DiagnoserInput` allowlist built from the Collector's output (never
+`CollectorOutput` itself), excluding benchmark taxonomy metadata (category) and everything
+`docs/collector.md` already excludes.
+Output: a structured `Diagnosis` — root-cause summary, suspected files/symbols, a concise
+reasoning summary, a self-reported and explicitly-uncalibrated `diagnosis_confidence`, and a
+first-class `insufficient_context` flag. No patch, diff, or repair instruction of any kind.
+Implementation: a single provider call in v1 — no multi-step agent loop, no retry. **No LLM
+SDK is installed and no real model call has been made yet** — the core is exercised only
+through a `FakeProvider`. See `docs/diagnoser.md` for the full contract and confidence
+semantics.
 
 **Patcher**
 Input: the Diagnoser's hypothesis and the relevant files.
@@ -84,6 +91,9 @@ Failed CI run
 ## Current status
 
 Collector is implemented (Phase 3), scoped to benchmark/reconstructed cases only — see above
-and `docs/collector.md`. Diagnoser, Patcher, Validator, Gatekeeper, and Orchestrator are all
-still unimplemented. No LLM SDK and no GitHub API integration exist anywhere in the codebase
-yet. See `README.md` for status and `docs/decisions.md` for the phased build plan.
+and `docs/collector.md`. Diagnoser's provider-independent core is implemented (Phase 4B) but
+has made zero real LLM calls — no SDK is installed, no provider adapter beyond the offline
+`FakeProvider` exists, and no diagnosis experiment has been run. Patcher, Validator,
+Gatekeeper, and Orchestrator are all still unimplemented. No LLM SDK and no GitHub API
+integration exist anywhere in the codebase yet. See `README.md` for status and
+`docs/decisions.md` for the phased build plan.

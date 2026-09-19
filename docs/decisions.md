@@ -707,3 +707,174 @@ predicts diagnosis success, or that 0.0 recall predicts failure. No change to
 context-selection rules, limits, or defaults. No Diagnoser, Patcher, Validator, Gatekeeper, or
 Orchestrator code was added. No LLM SDK, embeddings, search, or RAG dependency was added. No
 benchmark case was added, modified, or removed.
+
+## 2026-09-19 — Phase 4A design approved (with corrections); Phase 4B Diagnoser core implemented offline
+
+**Phase 4A** was a design-only proposal for the first LLM-based component, the Diagnoser —
+reviewed and approved with three corrections before any code was written:
+
+1. **`category` (benchmark taxonomy metadata) removed from all model-visible input.** The
+   Phase 4A proposal had included it on the grounds that it's redundant with
+   `parsed_failure.error_type`; the correction holds that "redundant with something
+   legitimate" is not the same as "legitimate," and a real CI failure would never arrive
+   pre-labeled with its own taxonomy category. Removed from `DiagnoserInput` and the rendered
+   prompt entirely; the model must infer failure type from execution evidence alone.
+2. **No generic `llm_api_key` setting.** Provider-specific secrets (e.g. `ANTHROPIC_API_KEY`)
+   belong to a future concrete provider adapter, never to the provider-neutral core.
+3. **No real provider this phase.** Only the `LLMProvider` interface and a `FakeProvider` are
+   implemented — no SDK installed, no network call, pending a full prompt/boundary audit first.
+
+**Phase 4B implements exactly the corrected design**, offline: `src/renacir/diagnoser/`
+(`models.py`, `provider.py`, `providers/fake.py`, `prompts/v1.py`, `diagnoser.py`) and
+`src/renacir/evaluation/diagnosis.py` (automated evaluation helpers, mirroring
+`renacir.evaluation.retrieval`'s existing after-the-fact, evaluator-only posture).
+
+**The pipeline implemented**: `CollectorOutput` → `DiagnoserInput` (explicit allowlist,
+`build_diagnoser_input()`, which takes only a `CollectorOutput` and a condition string, never
+a `BenchmarkCase` — a deliberate defense-in-depth choice so the module structurally cannot
+read `reference_repair`/`independent_checks`/`upstream`/`curation`/`test_overlay` even by
+accident) → versioned rendered prompt (`diagnoser-v1`) → `LLMProvider.generate()` (called
+exactly once, no retry, no "repair the JSON with another call") → strict `Diagnosis` parsing/
+validation (Pydantic-enforced bounds: confidence in `[0.0, 1.0]`, capped list lengths and
+string lengths — an out-of-bounds or malformed response is recorded as `parse_status`
+`"validation_error"`/`"parse_error"`, never silently accepted or truncated) → grounding check
+→ `DiagnosisRunRecord`.
+
+**`diagnosis_confidence` semantics, stated explicitly, not left implicit**: a self-reported,
+uncalibrated belief score — not `P(correct)`, not used by any decision logic (there is no
+Gatekeeper), recorded only as a future candidate signal per `docs/research_protocol.md` §9's
+B2 baseline. Directly grounded in Fisch et al.'s risk-coverage-vs-calibration distinction
+(`docs/literature_review.md` §3, already vetted).
+
+**`insufficient_context` is first-class**, not inferred from low confidence, and is never set
+automatically from `RetrievalDiagnostic` — that decision belongs to the model based only on
+what it was actually shown. Proven, not just documented:
+`tests/diagnoser/test_diagnoser_leakage.py::test_retrieval_diagnostic_computation_cannot_alter_diagnoser_input`
+computes a `RetrievalDiagnostic` between two `build_diagnoser_input()` calls on the same
+`CollectorOutput` and confirms both produce an identical result.
+
+**Grounding**: `suspected_files` checked against every path the model actually saw (selected
+context, traceback frames, bare repository-structure filenames); a citation outside that set
+is recorded as `grounding_violation`, never silently dropped or used to discard the model's
+output. **`suspected_symbols` grounding is deliberately not implemented** — reliably verifying
+a free-text symbol name against visible source would require either real AST-level parsing or
+a substring search prone to false positives/negatives, exactly the "invented brittle
+validator" this phase was told not to build. Recorded as a stated limitation in
+`docs/diagnoser.md`, not silently patched over.
+
+**Retrospective-overlay boundary carried through unchanged from Phase 3**: verified for all 3
+real cases by building the *actual* `CollectorOutput` and *actual* rendered prompt (not a
+synthetic stand-in) and confirming the overlay's literal source text is absent from both input
+conditions —
+`tests/diagnoser/test_diagnoser_leakage.py::test_real_case_retrospective_overlay_source_never_appears_in_prompt`.
+
+**Two input conditions implemented as infrastructure, not run as an experiment**:
+`failure_output_only` (selected context and repository structure forced empty) and
+`full_context` (populated exactly as Collector produced them) — same prompt structure, output
+schema, and provider configuration otherwise, so a later comparison isolates whether selected
+source context adds measurable value.
+
+**Discrepancy found and fixed during implementation**: two new test files
+(`tests/diagnoser/test_models.py`, `tests/diagnoser/test_leakage.py`) collided by basename
+with existing files in `tests/collector/` — this repository has no `__init__.py` in test
+directories, so pytest's rootdir-relative module naming raised `import file mismatch` the
+moment the full suite (not just `tests/diagnoser/`) was run. Fixed by renaming to
+`test_diagnoser_models.py`/`test_diagnoser_leakage.py`, matching the only viable fix under the
+existing no-`__init__.py` convention rather than introducing package markers project-wide.
+
+**Verified before considering Phase 4B complete**: full `pytest` suite (331 passed — 240 prior
++ 91 new) and unrestricted `pytest .` both pass; `ruff check .` and `ruff format --check .`
+clean; `git diff --check` clean; `pyproject.toml` unchanged (confirmed via diff); `import
+anthropic`/`import openai` both fail (not installed); no network-library import anywhere in
+`src/renacir/diagnoser/`. Three offline `FakeProvider` demonstrations run
+(`assertion-average-off-by-one`/`full_context`, `import-renamed-helper`/`failure_output_only`,
+`httpie-custom-host-header`/`full_context`) — the third confirms Phase 3's own empty
+`selected_context` for that case is unchanged and correctly renders as `SOURCE_FILES: none
+provided`. Benchmark manifest and fixtures, Collector selection behavior, and
+`RetrievalDiagnostic` all confirmed unchanged.
+
+**Explicitly not claimed**: any diagnosis accuracy, quality, or confidence-calibration result
+— none exists, no real model has been called. No Patcher, Validator, Gatekeeper, or
+Orchestrator code was added. No LLM SDK was installed. No new dependency was added
+(`pyproject.toml` diff is empty). No API key was configured or required. K and its aggregation
+rule remain exactly as unresolved as `docs/research_protocol.md` §14 already states — nothing
+in `DiagnosisRunRecord` assumes or encodes a specific value.
+
+## 2026-09-20 — Phase 4C: Anthropic adapter implemented and offline-verified; planned smoke call blocked, not skipped
+
+**Discrepancy noted at the start of this phase, not silently absorbed**: this phase's
+instructions stated "Phase 4B is complete and committed." `git log` shows the latest commit as
+`b6612aa` ("Implement Phase 3 Collector and retrieval diagnostics") — Phase 4A/4B's Diagnoser
+work (`src/renacir/diagnoser/`, `src/renacir/evaluation/diagnosis.py`, `docs/diagnoser.md`,
+and the `ARCHITECTURE.md`/`README.md`/`docs/decisions.md`/`docs/research_protocol.md` edits
+recorded in the prior entry) was present in the working tree but **uncommitted**. Proceeding
+on the working tree as-is (uncommitted state is not lost or at risk, and this phase's own
+instructions were "do not commit" regardless) rather than committing on the user's behalf
+without being asked.
+
+**Implemented**: the first real provider adapter, `AnthropicProvider`
+(`src/renacir/diagnoser/providers/anthropic.py`), and a `python -m renacir diagnose` CLI
+command (`src/renacir/__main__.py`). Added one dependency, `anthropic>=0.40` (the official
+SDK) — the only dependency change this phase, exactly as authorized.
+
+**A concrete, non-obvious finding**: the Anthropic SDK's client defaults to `max_retries=2`
+internally — silent transport-level retries this project's own orchestration code would never
+see. Given the explicit "exactly one model call means exactly one model call" requirement,
+this had to be overridden to `max_retries=0` at client construction — otherwise "no retry"
+would have held at the `renacir.diagnoser.diagnoser.diagnose()` call site while silently not
+holding at the HTTP layer underneath it. Verified by inspecting the constructed client's own
+`max_retries` attribute (`tests/diagnoser/test_anthropic_provider.py`), not merely assumed
+from reading the constructor signature.
+
+**Secrets handling, verified not just designed**: `AnthropicProvider` takes its API key as a
+plain constructor argument and never reads `os.environ` itself (kept fully unit-testable
+without touching real configuration). The CLI resolves the key from
+`renacir.config.Settings.anthropic_api_key` (new field, sourced from the `ANTHROPIC_API_KEY`
+environment variable / `.env`, following the project's existing `pydantic-settings` pattern —
+no parallel secret-loading mechanism introduced) — never a CLI argument. `.env.example` gained
+`ANTHROPIC_API_KEY=` and `LLM_MODEL=` with no real values. A planted fake-secret string was
+confirmed absent from a full `DiagnosisRunRecord`'s serialized JSON (rendered prompts,
+fingerprint, every field) and from CLI stdout/stderr on every refusal path, not just asserted
+by design.
+
+**Model identifier**: never given a code-level default anywhere — `Settings.llm_model` is
+`None` by default, `--model` has no CLI default, and the CLI refuses cleanly if neither is
+set, before touching the provider or any secret.
+
+**CLI safety gate**: `--allow-api-call` is required before the command will resolve the API
+key, construct a provider, or reach the network at all; its absence is checked before the
+model-id check's *sibling* concerns (key resolution, provider construction) so a run with
+neither flag correctly reports the API-call refusal first. Tested directly, not just by code
+inspection.
+
+**Offline verification completed** (`tests/diagnoser/test_anthropic_provider.py`,
+`tests/test_diagnose_cli.py`, plus a full re-run of every Phase 4B leakage test): request-field
+mapping to the Anthropic Messages API, text/token-usage extraction, latency recording,
+`APIError`-to-`provider_error` mapping without raising, exactly-one-call-on-error, non-`APIError`
+exceptions still propagating (never misreported as a provider failure), `max_retries=0`
+confirmed on the real client, missing-API-key / missing-model / missing-`--allow-api-call` /
+unknown-case-id all refused cleanly with no secret ever printed. Full `pytest`/`pytest .`
+(347 passed), `ruff check .`, `ruff format --check .`, and `git diff --check` all clean.
+`import anthropic` now succeeds (expected — it's the newly added dependency); no other new
+package appeared in the dependency tree beyond `anthropic`'s own transitive requirements.
+
+**The planned single real smoke call was NOT made this session — blocked on two required
+inputs neither this document nor this session may supply**:
+1. `ANTHROPIC_API_KEY` is not set in this environment (confirmed via direct check before any
+   implementation work began).
+2. No exact Anthropic model identifier was supplied — by explicit design (this entry and
+   `docs/diagnoser.md`), the code never defaults or guesses one, and choosing one is reserved
+   for the user, not inferred here.
+
+This is reported as a blocked step, not silently worked around by picking a plausible-looking
+model string or reading a key from somewhere unexpected. **No real API call has been made. No
+diagnosis, accuracy, or calibration result exists from this phase.** The actual smoke-call
+procedure (exact CLI invocation, pre-call metadata to report, post-call fields to report, the
+prompt-freeze rule) is otherwise fully ready to execute once both inputs are supplied.
+
+**Explicitly not claimed**: any diagnosis result, any accuracy/calibration finding, that
+`diagnoser-v1` was validated against a real model in any way. Prompt v1 was not edited. No
+Patcher, Validator, Gatekeeper, or Orchestrator code was added. No dependency beyond
+`anthropic` was added. No benchmark case, manifest entry, or fixture was touched. Collector
+and `RetrievalDiagnostic` behavior unchanged (no test in either area was modified, only
+re-run).

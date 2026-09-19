@@ -244,8 +244,16 @@ python -m renacir collect assertion-average-off-by-one
 python -m renacir collect httpie-none-header-skip --json   # requires `prepare` first
 ```
 
-Diagnoser, Patcher, Validator, Gatekeeper, and Orchestrator (see `ARCHITECTURE.md`) are all
-still unimplemented.
+**Diagnoser — offline core only, Phase 4B.** `src/renacir/diagnoser/`: an explicit
+`DiagnoserInput` allowlist built from `CollectorOutput`, a versioned prompt renderer, a
+minimal provider-neutral `LLMProvider` interface, and strict `Diagnosis` output
+parsing/validation with no retry. **No LLM SDK is installed and no real model call has been
+made** — everything is exercised through a `FakeProvider` that never touches a network. See
+`docs/diagnoser.md` for the full input/output contract, confidence semantics, and what has and
+has not been done.
+
+Patcher, Validator, Gatekeeper, and Orchestrator (see `ARCHITECTURE.md`) are all still
+unimplemented.
 
 ## Local setup
 

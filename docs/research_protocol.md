@@ -1,7 +1,10 @@
 # Research Protocol
 
-**Status: FROZEN — 2026-09-18.** Governs methodology before any of Collector, Diagnoser,
-Patcher, Validator, Gatekeeper, or Orchestrator is implemented. Amendments require a new
+**Status: FROZEN — 2026-09-18.** Governs methodology, frozen before any of Collector,
+Diagnoser, Patcher, Validator, Gatekeeper, or Orchestrator was implemented. As of Phase 4B,
+Collector and Diagnoser's provider-independent core exist (`docs/collector.md`,
+`docs/diagnoser.md`) — no real LLM call has been made and no methodological question this
+document leaves open has been resolved by that implementation work. Amendments require a new
 dated entry in `docs/decisions.md`, not a silent edit here.
 
 This document is the authoritative source for research-methodology questions referenced
