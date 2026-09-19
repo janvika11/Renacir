@@ -7,11 +7,17 @@ from renacir.benchmark.discovery import (
     discover_cases,
 )
 from renacir.benchmark.models import (
+    CompatibilityAdaptation,
     ContaminationRisk,
     CurationMetadata,
+    HistoricalRuntime,
     IndependentCheck,
+    PreparationStep,
+    ReconstructionRuntime,
     ReferenceRepair,
+    RetrospectiveTestOverlay,
     SourceMetadata,
+    UpstreamProvenance,
 )
 
 TIER_C_AND_D_FIELD_NAMES = (
@@ -20,6 +26,12 @@ TIER_C_AND_D_FIELD_NAMES = (
     | set(ContaminationRisk.model_fields)
     | set(ReferenceRepair.model_fields)
     | set(IndependentCheck.model_fields)
+    | set(UpstreamProvenance.model_fields)
+    | set(RetrospectiveTestOverlay.model_fields)
+    | set(CompatibilityAdaptation.model_fields)
+    | set(HistoricalRuntime.model_fields)
+    | set(ReconstructionRuntime.model_fields)
+    | set(PreparationStep.model_fields)
 )
 
 
@@ -35,6 +47,42 @@ def test_build_model_facing_context_does_not_touch_reference_repair_or_curation(
         assert not hasattr(context, "curation")
         assert not hasattr(context, "source")
         assert not hasattr(context, "independent_checks")
+        assert not hasattr(context, "upstream")
+        assert not hasattr(context, "test_overlay")
+
+
+def test_upstream_provenance_never_appears_in_model_facing_context_serialization():
+    forbidden_substrings = ("buggy_commit", "fix_commit", "repository_url", "preparation_steps")
+
+    for case in discover_cases():
+        if case.upstream is None:
+            continue
+        context = build_model_facing_context(case)
+        serialized = json.dumps(context.model_dump())
+
+        assert case.upstream.buggy_commit not in serialized
+        assert case.upstream.fix_commit not in serialized
+        assert case.upstream.repository_url not in serialized
+        for forbidden in forbidden_substrings:
+            assert forbidden not in serialized
+
+
+def test_staged_case_never_contains_test_overlay_target():
+    from renacir.benchmark.reconstruction import is_prepared
+    from renacir.benchmark.runner import staged_case
+
+    for case in discover_cases():
+        if case.test_overlay is None:
+            continue
+        if case.upstream is not None and not is_prepared(case):
+            continue  # requires `python -m renacir.benchmark prepare` first
+        with staged_case(case, DEFAULT_BENCHMARK_ROOT) as staged:
+            overlay_target = staged / case.test_overlay.target_path
+            assert not overlay_target.exists(), (
+                f"{case.id}: the retrospective test overlay (Tier D) must not be present "
+                "in the general staged tree — only `evaluate_case` applies it, on its own "
+                "private copy, via `apply_test_overlay`"
+            )
 
 
 def test_independent_check_paths_never_appear_in_model_facing_context():

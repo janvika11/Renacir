@@ -1,0 +1,6 @@
+{
+  "id": "httpie-custom-host-header",
+  "category": "assertion",
+  "description": "httpie.models.HTTPRequest.headers duplicates the Host header when the user explicitly supplies a custom Host header -- the auto-added Host is checked against a copy of the headers dict rather than the original, so the membership check never sees the user's own Host key.",
+  "root_cause": "'Host' not in headers checked against a dict copy instead of self._orig.headers"
+}

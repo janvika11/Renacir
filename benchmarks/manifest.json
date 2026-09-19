@@ -5,7 +5,10 @@
       "id": "assertion-average-off-by-one",
       "category": "assertion",
       "path": "cases/assertion_average_off_by_one",
-      "command": ["pytest", "-q"],
+      "command": [
+        "pytest",
+        "-q"
+      ],
       "failing_test": "test_stats.py::test_average_of_three",
       "reference_repair": {
         "patch": "reference/fix.patch"
@@ -41,7 +44,10 @@
       "id": "import-renamed-helper",
       "category": "import",
       "path": "cases/import_renamed_helper",
-      "command": ["pytest", "-q"],
+      "command": [
+        "pytest",
+        "-q"
+      ],
       "failing_test": "test_main.py::test_compute",
       "reference_repair": {
         "patch": "reference/fix.patch"
@@ -77,7 +83,10 @@
       "id": "assertion-discount-boolean-logic",
       "category": "assertion",
       "path": "cases/assertion_discount_boolean_logic",
-      "command": ["pytest", "-q"],
+      "command": [
+        "pytest",
+        "-q"
+      ],
       "failing_test": "test_billing.py::test_discount_for_large_nonmember_cart",
       "reference_repair": {
         "patch": "reference/fix.patch"
@@ -118,7 +127,10 @@
       "id": "assertion-tags-mutable-default",
       "category": "assertion",
       "path": "cases/assertion_tags_mutable_default",
-      "command": ["pytest", "-q"],
+      "command": [
+        "pytest",
+        "-q"
+      ],
       "failing_test": "test_textstats.py::test_collect_tags_is_independent_across_calls",
       "reference_repair": {
         "patch": "reference/fix.patch"
@@ -159,7 +171,10 @@
       "id": "assertion-truncate-empty-edge-case",
       "category": "assertion",
       "path": "cases/assertion_truncate_empty_edge_case",
-      "command": ["pytest", "-q"],
+      "command": [
+        "pytest",
+        "-q"
+      ],
       "failing_test": "test_textstats.py::test_truncate_exact_width_is_unchanged",
       "reference_repair": {
         "patch": "reference/fix.patch"
@@ -200,7 +215,10 @@
       "id": "assertion-config-fallback-default",
       "category": "assertion",
       "path": "cases/assertion_config_fallback_default",
-      "command": ["pytest", "-q"],
+      "command": [
+        "pytest",
+        "-q"
+      ],
       "failing_test": "test_config.py::test_missing_key_returns_sentinel",
       "reference_repair": {
         "patch": "reference/fix.patch"
@@ -241,7 +259,10 @@
       "id": "import-reportpkg-missing-reexport",
       "category": "import",
       "path": "cases/import_reportpkg_missing_reexport",
-      "command": ["pytest", "-q"],
+      "command": [
+        "pytest",
+        "-q"
+      ],
       "failing_test": "test_reportpkg.py::test_generate_report_formats_title",
       "reference_repair": {
         "patch": "reference/fix.patch"
@@ -282,7 +303,10 @@
       "id": "import-reportpkg-bad-local-import",
       "category": "import",
       "path": "cases/import_reportpkg_bad_local_import",
-      "command": ["pytest", "-q"],
+      "command": [
+        "pytest",
+        "-q"
+      ],
       "failing_test": "test_reportpkg.py::test_generate_report_formats_title",
       "reference_repair": {
         "patch": "reference/fix.patch"
@@ -323,7 +347,10 @@
       "id": "import-reportpkg-broken-init",
       "category": "import",
       "path": "cases/import_reportpkg_broken_init",
-      "command": ["pytest", "-q"],
+      "command": [
+        "pytest",
+        "-q"
+      ],
       "failing_test": "test_reportpkg.py::test_generate_report_formats_title",
       "reference_repair": {
         "patch": "reference/fix.patch"
@@ -359,6 +386,349 @@
           "description": "Verifies the package imports cleanly after repair and every name still declared in __all__ resolves, guarding against an over-broad repair."
         }
       ]
+    },
+    {
+      "id": "httpie-none-header-skip",
+      "category": "assertion",
+      "path": "cases/real_httpie_none_header_skip",
+      "command": [
+        "pytest",
+        "tests/test_renacir_repro.py",
+        "-q"
+      ],
+      "failing_test": "tests/test_renacir_repro.py::test_update_headers_with_none_value_does_not_crash",
+      "reference_repair": {
+        "patch": "reference/fix.patch"
+      },
+      "execution": {
+        "python_version": null,
+        "dependency_spec": null,
+        "install_procedure": null,
+        "environment_info": "reconstruction-recipe case; see `upstream` for the reconstruction environment and preparation steps",
+        "reproducibility_check_version": "pilot-5x-v1"
+      },
+      "source": {
+        "type": "real",
+        "source_group_id": "real:httpie-cli",
+        "repository_size": null
+      },
+      "curation": {
+        "status": "accepted",
+        "rejection_reason": null,
+        "dedup_cluster_id": "real:httpie-cli-session-header-handling",
+        "fold": "unassigned",
+        "contamination_risk": {
+          "flag": "plausible",
+          "notes": "public GitHub issue/commit history; training-data contamination for widely-mirrored open-source repos cannot be ruled out. See docs/research_protocol.md."
+        }
+      },
+      "independent_checks": [
+        {
+          "path": "reference/independent_check.py",
+          "description": "update_headers skips multiple None-valued headers while preserving real values, and does not crash when every header is unset."
+        }
+      ],
+      "upstream": {
+        "repository": "httpie/cli",
+        "repository_url": "https://github.com/httpie/cli.git",
+        "license": "BSD-3-Clause",
+        "license_verification_note": "LICENSE file at the pinned commit: 'Copyright (c) 2012-2016 Jakub Roztocil <jakub@roztocil.co>', permissive redistribution with attribution.",
+        "issue_url": "https://github.com/httpie/cli/issues/412",
+        "issue_date": null,
+        "buggy_commit": "8c33e5e3d31d3cd6476c4d9bc963a4c529f883d2",
+        "fix_commit": "589887939507ff26d36ec74bd2c045819cfa3d56",
+        "fix_date": "2016-02-28",
+        "production_files": [
+          "httpie/sessions.py"
+        ],
+        "real_ci_subtype": "real_ci_c",
+        "historical_runtime": {
+          "python_version": "2.7/3.x era (pre-2016); not pinned more precisely than the repository's own contemporaneous tox/travis config indicates",
+          "notes": "Not independently re-verified against a historically-accurate interpreter; see reconstruction_runtime for what was actually run."
+        },
+        "reconstruction_runtime": {
+          "python_version": "3.11+",
+          "compatibility_adaptations": [
+            {
+              "description": "collections.Iterable/Mapping/MutableMapping/Sequence aliased onto collections.abc",
+              "reason": "removed from the `collections` module directly in Python 3.10+; this 2016-era codebase imports them from `collections` directly",
+              "file_path": "conftest.py",
+              "file_content": "# NOT part of the historical bug or its fix -- a narrow Python 3.10+\n# compatibility shim so this 2016-era codebase (written for Python <3.10,\n# where collections.Iterable was still available directly) can be imported\n# for reproduction purposes on a modern Python interpreter. Applied only\n# because no historically-accurate Python interpreter is available locally.\n# Never touches httpie/sessions.py, the file containing the actual bug and\n# its historical fix.\nimport collections\nimport collections.abc\nfor _name in (\"Iterable\", \"Mapping\", \"MutableMapping\", \"Sequence\"):\n    if not hasattr(collections, _name):\n        setattr(collections, _name, getattr(collections.abc, _name))\n"
+            }
+          ]
+        },
+        "preparation_steps": [
+          {
+            "argv": [
+              "git",
+              "clone",
+              "https://github.com/httpie/cli.git",
+              "repo"
+            ],
+            "cwd": "."
+          },
+          {
+            "argv": [
+              "git",
+              "checkout",
+              "8c33e5e3d31d3cd6476c4d9bc963a4c529f883d2"
+            ],
+            "cwd": "repo"
+          },
+          {
+            "argv": [
+              "python3",
+              "-m",
+              "venv",
+              "venv"
+            ],
+            "cwd": "."
+          },
+          {
+            "argv": [
+              "venv/bin/pip",
+              "install",
+              "setuptools<81",
+              "pytest",
+              "Pygments",
+              "requests"
+            ],
+            "cwd": "."
+          }
+        ],
+        "preparation_requires_network": true,
+        "evaluation_requires_network": false
+      },
+      "test_overlay": {
+        "path": "reference/repro_test.py",
+        "target_path": "tests/test_renacir_repro.py"
+      }
+    },
+    {
+      "id": "httpie-custom-host-header",
+      "category": "assertion",
+      "path": "cases/real_httpie_custom_host_header",
+      "command": [
+        "pytest",
+        "tests/test_renacir_repro.py",
+        "-q"
+      ],
+      "failing_test": "tests/test_renacir_repro.py::test_custom_host_header_not_duplicated",
+      "reference_repair": {
+        "patch": "reference/fix.patch"
+      },
+      "execution": {
+        "python_version": null,
+        "dependency_spec": null,
+        "install_procedure": null,
+        "environment_info": "reconstruction-recipe case; see `upstream` for the reconstruction environment and preparation steps",
+        "reproducibility_check_version": "pilot-5x-v1"
+      },
+      "source": {
+        "type": "real",
+        "source_group_id": "real:httpie-cli",
+        "repository_size": null
+      },
+      "curation": {
+        "status": "accepted",
+        "rejection_reason": null,
+        "dedup_cluster_id": "real:httpie-cli-custom-host-header",
+        "fold": "unassigned",
+        "contamination_risk": {
+          "flag": "plausible",
+          "notes": "public GitHub issue/commit history; training-data contamination for widely-mirrored open-source repos cannot be ruled out. See docs/research_protocol.md."
+        }
+      },
+      "independent_checks": [
+        {
+          "path": "reference/independent_check.py",
+          "description": "custom Host header not duplicated across casings, Host still auto-added when absent, and a custom Host header survives alongside other headers."
+        }
+      ],
+      "upstream": {
+        "repository": "httpie/cli",
+        "repository_url": "https://github.com/httpie/cli.git",
+        "license": "BSD-3-Clause",
+        "license_verification_note": "LICENSE file at the pinned commit: 'Copyright (c) 2012-2016 Jakub Roztocil <jakub@roztocil.co>', permissive redistribution with attribution.",
+        "issue_url": "https://github.com/httpie/cli/issues/235",
+        "issue_date": null,
+        "buggy_commit": "8c892edd4fe700a7ca5cc733dcb4817831d253e2",
+        "fix_commit": "040d981f00c3f6830b2d0db3daf3c64c080e96e3",
+        "fix_date": "2014-06-28",
+        "production_files": [
+          "httpie/models.py"
+        ],
+        "real_ci_subtype": "real_ci_c",
+        "historical_runtime": {
+          "python_version": "2.7/3.x era (pre-2014); not pinned more precisely than the repository's own contemporaneous tox/travis config indicates",
+          "notes": "Not independently re-verified against a historically-accurate interpreter; see reconstruction_runtime for what was actually run."
+        },
+        "reconstruction_runtime": {
+          "python_version": "3.11+",
+          "compatibility_adaptations": [
+            {
+              "description": "collections.Iterable/Mapping/MutableMapping/Sequence/Callable aliased onto collections.abc; requests.compat.is_windows/is_py3/is_py26 monkeypatched if absent",
+              "reason": "collections ABCs removed from `collections` directly in Python 3.10+; is_windows/is_py3/is_py26 removed from modern `requests.compat`, both imported directly by this ~2014-era codebase and (transitively) by requests itself",
+              "file_path": "conftest.py",
+              "file_content": "# NOT part of the historical bug or its fix -- narrow Python 3.10+/modern-\n# `requests` compatibility shims so this ~2014-era httpie codebase can be\n# imported on a modern Python interpreter with a modern `requests`. No\n# historically-accurate interpreter/dependency stack is available locally.\n# Never touches httpie/models.py, the file containing the actual bug and\n# its historical fix.\nimport collections\nimport collections.abc\n\nfor _name in (\"Iterable\", \"Mapping\", \"MutableMapping\", \"Sequence\", \"Callable\"):\n    if not hasattr(collections, _name):\n        setattr(collections, _name, getattr(collections.abc, _name))\n\nimport platform\nimport requests.compat\n\nif not hasattr(requests.compat, \"is_windows\"):\n    requests.compat.is_windows = platform.system() == \"Windows\"\nif not hasattr(requests.compat, \"is_py3\"):\n    requests.compat.is_py3 = True\nif not hasattr(requests.compat, \"is_py26\"):\n    requests.compat.is_py26 = False\n"
+            }
+          ]
+        },
+        "preparation_steps": [
+          {
+            "argv": [
+              "git",
+              "clone",
+              "https://github.com/httpie/cli.git",
+              "repo"
+            ],
+            "cwd": "."
+          },
+          {
+            "argv": [
+              "git",
+              "checkout",
+              "8c892edd4fe700a7ca5cc733dcb4817831d253e2"
+            ],
+            "cwd": "repo"
+          },
+          {
+            "argv": [
+              "python3",
+              "-m",
+              "venv",
+              "venv"
+            ],
+            "cwd": "."
+          },
+          {
+            "argv": [
+              "venv/bin/pip",
+              "install",
+              "setuptools<81",
+              "pytest",
+              "Pygments",
+              "mock",
+              "requests"
+            ],
+            "cwd": "."
+          }
+        ],
+        "preparation_requires_network": true,
+        "evaluation_requires_network": false
+      },
+      "test_overlay": {
+        "path": "reference/repro_test.py",
+        "target_path": "tests/test_renacir_repro.py"
+      }
+    },
+    {
+      "id": "click-path-resolve-symlink",
+      "category": "assertion",
+      "path": "cases/real_click_path_resolve_symlink",
+      "command": [
+        "pytest",
+        "tests/test_renacir_repro.py",
+        "-q"
+      ],
+      "failing_test": "tests/test_renacir_repro.py::test_resolve_path_follows_relative_symlink",
+      "reference_repair": {
+        "patch": "reference/fix.patch"
+      },
+      "execution": {
+        "python_version": null,
+        "dependency_spec": null,
+        "install_procedure": null,
+        "environment_info": "reconstruction-recipe case; see `upstream` for the reconstruction environment and preparation steps",
+        "reproducibility_check_version": "pilot-5x-v1"
+      },
+      "source": {
+        "type": "real",
+        "source_group_id": "real:pallets-click",
+        "repository_size": null
+      },
+      "curation": {
+        "status": "accepted",
+        "rejection_reason": null,
+        "dedup_cluster_id": "real:pallets-click-path-resolve-symlink",
+        "fold": "unassigned",
+        "contamination_risk": {
+          "flag": "plausible",
+          "notes": "public GitHub issue/commit history; training-data contamination for widely-mirrored open-source repos cannot be ruled out. See docs/research_protocol.md."
+        }
+      },
+      "independent_checks": [
+        {
+          "path": "reference/independent_check.py",
+          "description": "relative symlink in a different subdirectory resolves, absolute-target symlinks still resolve (no regression), and plain non-symlinked paths are unaffected."
+        }
+      ],
+      "upstream": {
+        "repository": "pallets/click",
+        "repository_url": "https://github.com/pallets/click.git",
+        "license": "BSD-3-Clause",
+        "license_verification_note": "LICENSE.rst file at the pinned commit: 'Copyright 2014 Pallets', permissive redistribution with attribution.",
+        "issue_url": "https://github.com/pallets/click/issues/1921",
+        "issue_date": null,
+        "buggy_commit": "76cc18d1f0bd5854f14526e3ccbce631d8344cce",
+        "fix_commit": "986f322e435fac5e1fb8505d3683c8a224c18b06",
+        "fix_date": "2021-07-15",
+        "production_files": [
+          "src/click/types.py"
+        ],
+        "real_ci_subtype": "real_ci_c",
+        "historical_runtime": {
+          "python_version": "3.6+ (click 8.x era, mid-2021)",
+          "notes": "Not independently re-verified against a historically-pinned interpreter; see reconstruction_runtime for what was actually run."
+        },
+        "reconstruction_runtime": {
+          "python_version": "3.11+",
+          "compatibility_adaptations": []
+        },
+        "preparation_steps": [
+          {
+            "argv": [
+              "git",
+              "clone",
+              "https://github.com/pallets/click.git",
+              "repo"
+            ],
+            "cwd": "."
+          },
+          {
+            "argv": [
+              "git",
+              "checkout",
+              "76cc18d1f0bd5854f14526e3ccbce631d8344cce"
+            ],
+            "cwd": "repo"
+          },
+          {
+            "argv": [
+              "python3",
+              "-m",
+              "venv",
+              "venv"
+            ],
+            "cwd": "."
+          },
+          {
+            "argv": [
+              "venv/bin/pip",
+              "install",
+              "pytest"
+            ],
+            "cwd": "."
+          }
+        ],
+        "preparation_requires_network": true,
+        "evaluation_requires_network": false,
+        "package_root": "src"
+      },
+      "test_overlay": {
+        "path": "reference/repro_test.py",
+        "target_path": "tests/test_renacir_repro.py"
+      }
     }
   ]
 }

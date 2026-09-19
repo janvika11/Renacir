@@ -23,6 +23,9 @@ ALL_CASE_IDS = {
     "import-reportpkg-missing-reexport",
     "import-reportpkg-bad-local-import",
     "import-reportpkg-broken-init",
+    "httpie-none-header-skip",
+    "httpie-custom-host-header",
+    "click-path-resolve-symlink",
 }
 
 
@@ -168,3 +171,76 @@ def test_manifest_rejects_invalid_curation_status():
 
     with pytest.raises(ValidationError):
         BenchmarkManifest.model_validate(raw)
+
+
+REAL_CASE_IDS = {
+    "httpie-none-header-skip",
+    "httpie-custom-host-header",
+    "click-path-resolve-symlink",
+}
+
+
+@pytest.mark.parametrize(
+    "case", [c for c in discover_cases() if c.id not in REAL_CASE_IDS], ids=lambda case: case.id
+)
+def test_synthetic_cases_have_no_upstream_provenance(case):
+    assert case.upstream is None
+    assert case.test_overlay is None
+
+
+@pytest.mark.parametrize(
+    "case", [c for c in discover_cases() if c.id in REAL_CASE_IDS], ids=lambda case: case.id
+)
+def test_real_cases_have_upstream_provenance(case):
+    assert case.upstream is not None
+    assert case.upstream.real_ci_subtype == "real_ci_c"
+    assert case.upstream.historical_runtime is not None
+    assert case.upstream.reconstruction_runtime.python_version
+    assert case.upstream.preparation_steps
+    assert case.upstream.preparation_requires_network is True
+    assert case.upstream.evaluation_requires_network is False
+
+
+def test_manifest_rejects_invalid_real_ci_subtype():
+    raw = json.loads(DEFAULT_MANIFEST_PATH.read_text())
+    real_case = next(c for c in raw["cases"] if c["id"] == "click-path-resolve-symlink")
+    real_case["upstream"]["real_ci_subtype"] = "real_ci_z"
+
+    with pytest.raises(ValidationError):
+        BenchmarkManifest.model_validate(raw)
+
+
+def test_manifest_rejects_real_case_missing_buggy_commit():
+    raw = json.loads(DEFAULT_MANIFEST_PATH.read_text())
+    real_case = next(c for c in raw["cases"] if c["id"] == "click-path-resolve-symlink")
+    del real_case["upstream"]["buggy_commit"]
+
+    with pytest.raises(ValidationError):
+        BenchmarkManifest.model_validate(raw)
+
+
+def test_manifest_accepts_case_with_no_upstream_key_at_all():
+    raw = json.loads(DEFAULT_MANIFEST_PATH.read_text())
+    synthetic_case = next(c for c in raw["cases"] if c["id"] not in REAL_CASE_IDS)
+    assert "upstream" not in synthetic_case or synthetic_case["upstream"] is None
+
+
+def test_unrestricted_pytest_still_cannot_collect_benchmark_or_cache_files():
+    """`benchmarks/` (fixtures, patches, evaluator-only checks) and
+    `.benchmark-cache/` (real cases' reconstructed checkouts, which carry
+    their own upstream pytest configs/tests) must never be swept into a bare
+    `pytest` collection run from the repository root — see `testpaths` and
+    `addopts` in pyproject.toml.
+    """
+    import subprocess
+
+    repo_root = DEFAULT_BENCHMARK_ROOT.parent
+    proc = subprocess.run(
+        ["pytest", "--collect-only", "-q"],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert "benchmarks/" not in proc.stdout
+    assert ".benchmark-cache" not in proc.stdout

@@ -82,8 +82,11 @@ A case is included only if:
    per the rubric in §6/§7.
 4. A single, minimal, author-agreed **gold patch** exists: applying it makes the failing
    test(s) pass with zero regressions on the rest of the suite.
-5. Repository is small: ≤5,000 LOC / ≤50 files (an explicit, arbitrary, stated ceiling — not
-   derived from data — chosen to bound Diagnoser context size and Validator sandbox runtime).
+5. Repository size is recorded as descriptive metadata (`source.repository_size`), not an
+   active hard inclusion gate — the original ≤5,000-LOC/≤50-file ceiling was removed per the
+   Phase 2 methodology revision (`docs/decisions.md`) in favor of task-level tractability
+   criteria: reproducible, bounded test scope, localized repair, fits the eventual sandbox
+   budget.
 6. No compiled extensions, no GPU, no credentials required.
 7. If sourced from a real repository: license permits inclusion and redistribution for
    research/study use.
@@ -422,7 +425,11 @@ Two sourcing tracks:
   qualifies if checking out `C`'s parent reproducibly fails the test(s) `C` fixes, `C`'s own
   diff serves as the reference repair (not the unique correct fix — see §7), and the case
   otherwise meets §5/§6. Requires manual triage per candidate (labor-intensive; not
-  automatable beyond initial candidate search).
+  automatable beyond initial candidate search). **Additionally requires primary-source
+  evidence that the failure itself predates the repair** — the REAL-CI-A/B/C taxonomy
+  (`docs/benchmark_schema.md`) — not merely that a bugfix commit exists; a real, reproducible
+  historical bug that doesn't meet this bar is recorded as HOLD, not accepted, and never
+  silently reclassified as rejected (`benchmarks/candidates.json`).
 
 **Schema implemented as of Phase 2A** (`docs/benchmark_schema.md`, `docs/decisions.md`):
 `manifest.json` per case now carries `execution` (runtime/environment metadata, case-specific
@@ -441,9 +448,10 @@ regardless of provenance. Rejected real-world candidates are recorded separately
   each subgroup has enough cases to not be pure noise (minimum n per subgroup TBD, unresolved
   item 5).
 - **Hard rule**: no claim may say "Renacir repairs X% of real-world CI failures" unless
-  backed by the real-case subset specifically. The current 2-case benchmark is 100%
-  synthetic/infrastructure-validation — no real-world performance claim is currently
-  supportable, and none should be implied.
+  backed by the real-case subset specifically. As of Phase 2E, the benchmark is 9 synthetic +
+  3 real (all REAL-CI-C, `docs/benchmark_schema.md`) — still a small pilot, not a
+  statistically representative real-world sample; 3:9 is not claimed as a final ratio, and no
+  general real-world performance claim is currently supportable.
 - Synthetic cases remain useful indefinitely for controlled ablations (author knows the true
   root cause, enabling cleaner diagnosis-accuracy measurement, §10.11) — not deprecated once
   real cases exist, just always labeled.
@@ -557,7 +565,7 @@ One structured (JSON) record per pipeline run, containing at minimum:
 | Risk | Mitigation | Detail |
 |---|---|---|
 | Repository-level leakage | Repo-level split, exact scheme TBD | §13 |
-| Ground-truth patch leakage | Gold patches never in Collector/Diagnoser/Patcher context; automated assertion that Collector never reads `expected/` | §20 |
+| Ground-truth patch leakage | Reference repairs never in Collector/Diagnoser/Patcher context; automated assertion that Collector never reads `reference/` | §19 |
 | Prompt tuning on test cases | Prompts frozen/hashed before any test-fold run; any change re-declares the fold spent | §15, §13 |
 | Model/version changes mid-experiment | Model version + Renacir commit hash logged per run | §15 |
 | Repeated stochastic runs | K and aggregation rule fixed and logged before data collection (both currently open) | §14 |
@@ -567,9 +575,13 @@ One structured (JSON) record per pipeline run, containing at minimum:
 
 ## 19. Data leakage risks and prevention
 
-- Gold patches and held-out tests live outside the Collector's "relevant files" surface
-  (already true structurally: `expected/` is not visible to the pipeline) — enforced by an
-  automated test on the Collector's file-selection logic once built, not just convention.
+- Reference repairs and held-out/independent tests live outside the Collector's "relevant
+  files" surface (already true structurally: `reference/` is excluded from `staged_case`'s
+  copy — see `docs/benchmark_schema.md` — and is never read by Collector) — enforced by
+  automated tests on the Collector's file-selection logic (`tests/collector/test_leakage.py`,
+  Phase 3), not just convention. This includes a further, Phase-3-specific case: a real
+  case's retrospective test overlay may be executed to reconstruct a historical failure, but
+  its source text is likewise never exposed — see `docs/collector.md`.
 - **Model provider training-data leakage / contamination**: for real mined cases from public
   GitHub repos, the LLM may have memorized the actual historical fix from pretraining —
   "correct repair" could reflect memorization, not repair capability. **Literature-confirmed**
@@ -669,9 +681,14 @@ decided by this freeze:
     literature-checkpoint result). This is a documented negative finding, not merely "not yet
     selected" — but conformal prediction is not ruled out in general, only unsupported for
     Renacir so far. No method is selected.
-12. Collector retrieval-completeness diagnostic (§5) — how to measure/report cases where
-    Collector fails to surface a file needed for an in-scope gold patch — deferred until
-    Collector is implemented.
+12. **[Narrowed]** Collector retrieval-completeness diagnostic (§5) — the per-case measurement
+    is now implemented (`renacir.evaluation.retrieval`, Phase 3 audit; see `docs/collector.md`):
+    for a benchmark case, whether context selection retrieved the production file(s) the
+    reference repair actually touches, evaluator-only, never influencing selection. What
+    remains unresolved is the *reporting/aggregation* policy — how per-case recall should be
+    summarized across the benchmark, whether/how it should factor into correctness-tier or
+    Gatekeeper analysis, and how repo-clustering interacts with it — none of which is decided
+    by the measurement existing.
 13. **[New]** Repository-clustered uncertainty estimation generally (§16) — no method found
     (Clopper-Pearson, plain cluster bootstrap, or the MacKinnon & Webb wild-bootstrap lead)
     has been established as correctly accounting for repo-clustered proportions/paired-binary

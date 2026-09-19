@@ -13,6 +13,66 @@
       "license_notes": null,
       "reproducibility_notes": "not built; rejected during design review before fixture creation",
       "benchmark_case_id": null
+    },
+    {
+      "candidate_id": "tqdm-tenumerate-start",
+      "source": "real",
+      "upstream_identifier": "https://github.com/tqdm/tqdm",
+      "review_date": "2026-09-18",
+      "decision": "held",
+      "hold_reason": "HOLD -- REAL-HISTORY/RETROSPECTIVE-TEST: the reported bug never shipped to a tagged release, and the buggy commit and the fix commit are only ~2 hours apart on the same feature branch -- there is no primary-source evidence of a pre-fix failing automated test, CI run, or reproducible bug-report test/command that predates the fix (the REAL-CI-A/B/C bar). Investigated and reproduced in full during Phase 2D.1; preserved here as a valid investigation, not implemented as an executable BenchmarkCase, and never silently reclassified as rejected/invalid. See docs/research_protocol.md's REAL-CI taxonomy.",
+      "rejection_reasons": [],
+      "license_notes": "MPL-2.0; not applicable -- not implemented",
+      "reproducibility_notes": "Fully reproduced in an isolated investigation (not committed to this repository): buggy state failed as expected pre-fix, passed post-fix. Held for methodological reasons, not reproducibility reasons.",
+      "benchmark_case_id": null
+    },
+    {
+      "candidate_id": "thefuck-pip-unknown-command",
+      "source": "real",
+      "upstream_identifier": "https://github.com/nvbn/thefuck",
+      "review_date": "2026-09-18",
+      "decision": "held",
+      "hold_reason": "HOLD -- REAL-HISTORY/RETROSPECTIVE-TEST: a real external bug report with a production stack trace exists, but the pytest regression artifact that catches the bug was introduced BY the fix commit itself -- no primary-source evidence of a pre-fix failing automated test, CI run, or reproducible bug-report test/command predating the fix (the REAL-CI-A/B/C bar). Investigated during Phase 2D; preserved here as a valid investigation, not implemented as an executable BenchmarkCase, and never silently reclassified as rejected/invalid. See docs/research_protocol.md's REAL-CI taxonomy.",
+      "rejection_reasons": [],
+      "license_notes": "MIT; not applicable -- not implemented",
+      "reproducibility_notes": "Fully reproduced in an isolated investigation (not committed to this repository): buggy state failed as expected pre-fix, passed post-fix. Held for methodological reasons, not reproducibility reasons.",
+      "benchmark_case_id": null
+    },
+    {
+      "candidate_id": "httpie-none-header-skip",
+      "source": "real",
+      "upstream_identifier": "https://github.com/httpie/cli@8c33e5e3d31d3cd6476c4d9bc963a4c529f883d2 (issue #412)",
+      "review_date": "2026-09-18",
+      "decision": "accepted",
+      "hold_reason": null,
+      "rejection_reasons": [],
+      "license_notes": "BSD-3-Clause; LICENSE file verified at the pinned commit.",
+      "reproducibility_notes": "PILOT ACCEPT -- REAL-CI-C. Reconstructed via a pinned reconstruction recipe (no upstream source vendored); verified >=5 consecutive times: fails on the buggy checkout, passes after the historical reference repair is applied, independent evaluator checks pass post-repair. See docs/benchmark_schema.md.",
+      "benchmark_case_id": "httpie-none-header-skip"
+    },
+    {
+      "candidate_id": "httpie-custom-host-header",
+      "source": "real",
+      "upstream_identifier": "https://github.com/httpie/cli@8c892edd4fe700a7ca5cc733dcb4817831d253e2 (issue #235)",
+      "review_date": "2026-09-18",
+      "decision": "accepted",
+      "hold_reason": null,
+      "rejection_reasons": [],
+      "license_notes": "BSD-3-Clause; LICENSE file verified at the pinned commit.",
+      "reproducibility_notes": "PILOT ACCEPT -- REAL-CI-C. Reconstructed via a pinned reconstruction recipe (no upstream source vendored); verified >=5 consecutive times: fails on the buggy checkout, passes after the historical reference repair is applied, independent evaluator checks pass post-repair. See docs/benchmark_schema.md.",
+      "benchmark_case_id": "httpie-custom-host-header"
+    },
+    {
+      "candidate_id": "click-path-resolve-symlink",
+      "source": "real",
+      "upstream_identifier": "https://github.com/pallets/click@76cc18d1f0bd5854f14526e3ccbce631d8344cce (issue #1921, PR #2006)",
+      "review_date": "2026-09-18",
+      "decision": "accepted",
+      "hold_reason": null,
+      "rejection_reasons": [],
+      "license_notes": "BSD-3-Clause; LICENSE.rst file verified at the pinned commit.",
+      "reproducibility_notes": "PILOT ACCEPT -- REAL-CI-C. Reconstructed via a pinned reconstruction recipe (no upstream source vendored); verified >=5 consecutive times: fails on the buggy checkout, passes after the historical reference repair is applied, independent evaluator checks pass post-repair. See docs/benchmark_schema.md.",
+      "benchmark_case_id": "click-path-resolve-symlink"
     }
   ]
 }

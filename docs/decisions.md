@@ -416,3 +416,294 @@ repeated runs and aggregation policy — all exactly as open as recorded in
 Orchestrator code was added. No LLM or GitHub API integration was added. No new dependency
 was added (the `ruff` config change is not a dependency). No real-world dataset was
 downloaded and no real-world case was curated.
+
+## 2026-09-18 — Phase 2C/2D real-world discovery and reproduction; Phase 2E implementation (9 → 12 cases)
+
+**Phase 2C/2D (discovery and reproduction, prior to this entry's implementation work)**
+screened real-world candidates across BugsInPy, SWE-bench (structurally), and direct
+repository mining (tqdm, httpie, sanic, cookiecutter, thefuck, PySnooper, click, attrs),
+introducing a taxonomy to keep two distinct evidentiary standards from being conflated:
+
+- **REAL-CI-A/B/C**: a candidate qualifies only if primary-source evidence shows the failure
+  predates its repair — (A) a pre-existing failing automated test, (B) a preserved CI run/log,
+  or (C) a pre-fix bug report containing a reproducible failing test/command. **C explicitly
+  does not require the pytest regression artifact itself to predate the fix** — most mature
+  projects add that alongside the fix (a "retrospective regression test"); conflating the two
+  was identified and explicitly guarded against throughout.
+- **HOLD — REAL-HISTORY/RETROSPECTIVE-TEST**: a real, reproducible historical bug that does not
+  meet the REAL-CI-A/B/C bar. Not "rejected" (invalid) — a distinct, structurally-preserved
+  outcome. `tqdm-tenumerate-start` (buggy/fix commits ~2 hours apart on the same feature
+  branch, never shipped to a release) and `thefuck-pip-unknown-command` (a real production
+  stack trace exists, but the catching pytest artifact was added with the fix) were both fully
+  reproduced and are held, per this entry's explicit instruction, not implemented.
+
+A "zero test files touched in the fix commit" screening heuristic, applied at scale across
+20+ commits in 5+ repositories (thefuck alone: 17/17 retrospective), found exactly one
+REAL-CI-A candidate (`attrs`, commit `b950cb8d83`) — rejected separately, for reproducibility:
+the bug only manifests under Nuitka-compiled Python, not standard CPython. **0 REAL-CI-A/B
+candidates were ultimately usable; exactly 3 REAL-CI-C candidates were found and fully
+reproduced** — `httpie-none-header-skip` (#412), `httpie-custom-host-header` (#235),
+`click-path-resolve-symlink` (#1921) — meeting the approved target of 3.
+
+**Phase 2E implements exactly these 3 as executable `BenchmarkCase`s** (9 synthetic → 9 + 3 =
+12 total), per the approved plan's explicit constraint: `tqdm-tenumerate-start` and
+`thefuck-pip-unknown-command` remain HOLD-only, never silently reclassified.
+
+**Architecture: reconstruction recipes, not vendoring.** No upstream production source is
+stored in this repository. `BenchmarkCase.upstream` (new, `None` for every synthetic case)
+records pinned commits, license, REAL-CI subtype, two distinct runtimes (`historical_runtime`
+vs. `reconstruction_runtime`, never conflated), and an explicit `preparation_steps` recipe
+(clone → checkout → venv → install) that `renacir.benchmark.reconstruction.prepare_case`
+executes into a local, git-ignored, disposable cache (`.benchmark-cache/`) — never applying
+the reference repair during preparation. This enforces a **preparation vs. evaluation** split:
+`prepare_case` is the only network-requiring function for a real case (idempotent, cached);
+`evaluate_case` raises `PreparationRequiredError` rather than reaching the network if a real
+case hasn't been prepared yet. The prepared checkout has its `.git` directory deleted
+immediately after checkout — no reachable future/fix-commit history sits in the local cache at
+all, closing a leakage vector unique to git-clone-based reconstruction that vendored fixtures
+never had. No Docker-per-case infrastructure was needed or added (plain `venv` + `subprocess` +
+`git` sufficed for all 3 verified recipes); no new dependency was added to Renacir's own
+`pyproject.toml` (the historical dependencies installed by `prepare_case` are the *case's* own,
+into a disposable venv, never Renacir's).
+
+**A new leakage boundary, specific to real cases**: where a case's failing test is itself a
+retrospective regression test (true for all 3), it's stored as `reference/repro_test.py` and
+referenced by a new `test_overlay` field (`RetrospectiveTestOverlay`) — Tier D, like
+`reference/fix.patch`, but needed for *both* pre- and post-repair evaluator runs, unlike
+independent checks. Initial implementation copied it directly into `staged_case()`'s general
+copy — which would have left it visible to a hypothetical future Collector calling
+`staged_case()` on its own, the same class of leak Phase 2B fixed for `reference/` itself.
+**Fixed before being left in, not after**: `staged_case()` never touches `test_overlay`;
+`evaluate_case` applies it on its own private staged instance via a new
+`apply_test_overlay`, mirroring how `apply_reference_repair` already works outside, not inside,
+`staged_case`. Verified by
+`tests/benchmark/test_context.py::test_staged_case_never_contains_test_overlay_target`.
+
+**Three real bugs hit and fixed during implementation, not routed around**:
+1. `pip install -e` for a real case's package makes Python imports resolve back to the
+   persistent `.benchmark-cache/` checkout regardless of what gets copied into a given
+   evaluation's staged (pre- or post-repair) directory — silently defeating reference-repair
+   application (click's case: post-repair run kept failing identically to pre-repair). Fixed by
+   never using an editable install for real cases; `runner._subprocess_env` instead prepends
+   `PYTHONPATH` with the *staged* checkout's own `upstream.package_root` (new field, `"."` for
+   httpie's flat layout, `"src"` for click's).
+2. `setuptools` ≥ 81 (2025) removed `pkg_resources` entirely, breaking both `httpie` cases
+   (2016/2014-era code importing it directly). Fixed by pinning `setuptools<81` in
+   `preparation_steps`.
+3. `requests==2.9.1` (an attempted historically-closer pin for `httpie-custom-host-header`)
+   imports the stdlib `cgi` module, removed in Python 3.13+. Fixed by using unpinned modern
+   `requests` instead, relying on the already-present, `hasattr`-guarded
+   `requests.compat.is_windows`/`is_py3`/`is_py26` compatibility shim rather than an exact
+   historical pin.
+
+**Source grouping**: the two `httpie-*` cases share `source_group_id: "real:httpie-cli"` (same
+upstream repository); `click-path-resolve-symlink` has its own, `"real:pallets-click"`.
+
+**Licensing**: all 3 cases' stored `reference/` artifacts (a several-line diff, a small
+Renacir-authored-or-adapted test) are from BSD-3-Clause-licensed repositories
+(`httpie/cli`, `pallets/click`), verified against each repository's `LICENSE`/`LICENSE.rst`
+file at the pinned commit — reviewed explicitly before storing anything, per the approved
+plan's requirement. Only these small, attributed, evaluator-authored-or-derived artifacts are
+stored; the buggy production source itself is never vendored, always freshly cloned by
+`prepare_case`.
+
+**`benchmarks/candidates.json`**: extended with a third `decision` value, `"held"` (distinct
+from `"rejected"`, carrying a new `hold_reason` field), used for both HOLD candidates above;
+plus 3 new `"accepted"` records for the implemented cases, each with `benchmark_case_id`
+pointing at its manifest entry.
+
+**Reproducibility**: each of the 3 real cases verified through the full `prepare` →
+`evaluate_case` cycle 5 consecutive times — deterministic pre-repair failure, deterministic
+post-repair success, deterministic independent-check pass (same `"pilot-5x-v1"` heuristic as
+synthetic cases). For `click-path-resolve-symlink`, additionally confirmed the independent
+check's two unaffected sub-cases (absolute-target symlink; plain non-symlinked path) pass on
+the *buggy* checkout too — demonstrating they are genuine regression guards, not accidentally
+bug-sensitive; this was an explicit requirement of the approved plan.
+
+**Verified before considering Phase 2E complete**: full `pytest` suite (156 tests, including
+new coverage for real-world provenance schema, optional-for-synthetic behavior, REAL-CI
+subtype validation, the two-runtime distinction, compatibility-adaptation metadata,
+source-group behavior, reconstruction-step validation, the `test_overlay` leakage boundary,
+reference-repair/independent-check isolation, and unrestricted `pytest`'s continued inability
+to collect `benchmarks/` or `.benchmark-cache/`) and unrestricted `pytest .` both pass;
+`ruff check .` and `ruff format --check .` clean; `git diff --check` clean; all 12 cases
+individually exercised through `renacir-benchmark run <id>`, all passing (pre-patch fail,
+post-patch pass, independent checks pass); no reference repair, independent check, or
+retrospective test ever staged into the model-visible tree; no solution-revealing issue/PR
+discussion stored or exposed; synthetic cases' behavior unchanged (verified by the full
+existing suite still passing).
+
+**Explicitly not claimed**: that 3:9 is a final or representative real:synthetic ratio; that
+REAL-CI-A/B candidates don't exist anywhere (only that none were found in this search); that
+the historical runtime is pinned to the precision the reconstruction runtime is (recorded
+separately, on purpose). **Left unresolved, unaffected by this work**: everything listed as
+unresolved in `docs/research_protocol.md` and `docs/benchmark_schema.md` — repository-level
+split scheme, real:synthetic ratio, exact sandbox resource/time limits, repository-identity
+exposure, calibration-summary methodology, conformal method choice, K repeated runs and
+aggregation policy. No Collector, Diagnoser, Patcher, Validator, Gatekeeper, or Orchestrator
+code was added. No LLM or GitHub API integration was added. No new dependency was added to
+`pyproject.toml`. No Docker-per-case infrastructure was added.
+
+## 2026-09-19 — Phase 3: Collector implemented
+
+The first real pipeline component, `src/renacir/collector/` (`models.py`, `parsing.py`,
+`context_selection.py`, `collector.py`), plus a new top-level CLI (`src/renacir/__main__.py`,
+`python -m renacir collect <case-id>`). Benchmark dataset unchanged (still 9 synthetic + 3
+real, per Phase 2E) — this phase is pipeline implementation, not benchmark work.
+
+**Design approved before implementation**, including one explicit information-boundary
+decision for retrospective test overlays (real cases whose failing test was introduced by the
+historical fix, per Phase 2E): the overlay may be applied and executed to reconstruct the
+historical failure, and Collector may observe/report the resulting stdout, stderr, exit code,
+parsed exception type/message, and traceback file:line locations — but its source text must
+never appear in `CollectorOutput`, and `context_selection.select_context` must never include
+it even when a traceback frame points directly at it. A new `failing_test_provenance` field
+(`"original_fixture"` | `"reconstructed_retrospective_overlay"`) lets a future Diagnoser know
+reconstruction occurred without ever receiving the withheld content. For an ordinary synthetic
+case, the failing test's source remains legitimately Tier B, included under the normal bounded
+context-selection rules — this asymmetry is deliberate and documented in `docs/collector.md`,
+not silently uniform.
+
+**Reuses, doesn't duplicate**: `CollectorOutput.context` embeds
+`renacir.benchmark.context.ModelFacingContext` directly. Staging/execution reuses
+`renacir.benchmark.runner.staged_case`/`apply_test_overlay`/`run_tests` as-is; `run_tests`
+gained one small, additive, backward-compatible parameter (`extra_args: list[str] | None =
+None`, default identical to prior behavior) so Collector can request pytest's `--tb=line`
+format for reconstructed cases without touching `case.command` or `evaluate_case`'s own
+behavior. Collector never calls `apply_reference_repair` or `run_independent_checks` — it only
+ever observes the failing state.
+
+**Three discrepancies found and fixed during implementation, not routed around** (full detail
+in `docs/collector.md`'s "Determinism and path redaction" section):
+1. Stale `.pyc` bytecode copied from the original fixture directory (left over from earlier
+   direct `pytest -q` runs) could be reused instead of recompiled, causing pytest's traceback
+   trailer to print the *original fixture's* absolute host path instead of one relative to the
+   current staged copy — silently defeating the path-normalization filter meant to exclude
+   dependency/venv frames, and emptying out context selection entirely for one synthetic case
+   during testing. Fixed by purging `__pycache__`/`.pytest_cache` from Collector's own staged
+   copy before running — scoped to Collector only.
+2. An initial redaction pass (replacing the staged tempdir's absolute path with a
+   `<case-root>` placeholder) ran *before* parsing, which corrupted every traceback frame path
+   into an unresolvable literal and silently emptied `selected_context` for real cases. Fixed
+   by parsing against the original, unredacted text (frame-path normalization uses
+   `Path.relative_to`, not string matching) and redacting only afterward, for storage/display.
+3. `click-path-resolve-symlink`'s test uses pytest's own `tmp_path` fixture, whose absolute
+   path embeds the local OS username and a non-deterministic per-run counter
+   (`/private/var/.../pytest-of-<user>/pytest-<N>/...`) — neither the staged root nor the
+   reconstruction cache, so the fix above didn't catch it, and it broke both the
+   host-path-leakage guarantee and the "deterministic repeated collection" test. Fixed with a
+   residual regex redaction of any path remaining under `tempfile.gettempdir()`.
+
+**A known, stated v1 limitation, left as such rather than silently expanded**:
+context-selection rule 3 (local imports of the failing test file) is single-hop, not
+transitive. For `import-renamed-helper`, `helpers.py` — arguably the most relevant file, since
+it contains the renamed/missing symbol — is one import hop beyond what rule 3 reaches and
+produces no traceback frame either (Python's `ImportError` doesn't emit a location trailer for
+the module that failed to provide the name). Documented in `docs/collector.md` rather than
+fixed, since making rule 3 transitive wasn't part of the approved design and would weaken the
+bounded/narrow/explainable property Phase 3 was scoped around.
+
+**Documentation consistency corrections made, scoped narrowly as requested** (not a general
+cleanup pass): `docs/research_protocol.md` §5's repository-size criterion now states it's
+descriptive metadata (`source.repository_size`), not an active ≤5,000-LOC/≤50-file hard gate,
+matching the Phase 2 revision already recorded above; §18/§19's stale `expected/` terminology
+(pre-dating the Phase 2A `reference/` rename) replaced; the integrity-checklist table's broken
+`§20` cross-reference (pointing at "what conclusions this experiment could support," not a
+leakage section) corrected to `§19`, the section actually titled "Data leakage risks and
+prevention." Other previously-identified staleness (e.g. "gold patch" phrasing elsewhere in
+§5) was left untouched, out of scope for this narrow correction pass.
+
+**Verified before considering Phase 3 complete**: full `pytest` suite (233 passed — 156
+pre-existing + 77 new Collector tests: schema, real execution capture, assertion- and
+import-failure parsing, deterministic context selection, limit enforcement, fixture
+immutability, malformed/no-traceback handling, deterministic repeated collection, and the full
+forbidden-field/string/reference-repair/independent-check/retrospective-overlay leakage sweep,
+run against multiple synthetic cases and all 3 reconstructed real cases) and unrestricted
+`pytest .` both pass; `ruff check .` and `ruff format --check .` clean; `git diff --check`
+clean; `python -m renacir.benchmark list` unchanged (still 12 cases — benchmark dataset
+untouched). Collector manually demonstrated against one assertion synthetic case, one import
+synthetic case, and one reconstructed real case.
+
+**Explicitly not claimed**: that Collector's context-selection is exhaustive or complete (see
+the stated rule-3 limitation above); that the retrieval-completeness diagnostic
+(`docs/research_protocol.md` unresolved item 12) is now resolved — Collector existing doesn't
+resolve the measurement-methodology question, which remains deferred. No Diagnoser, Patcher,
+Validator, Gatekeeper, or Orchestrator code was added. No LLM SDK was added. No GitHub API
+integration was added. No benchmark case was added, modified, or removed.
+
+## 2026-09-19 — Phase 3 audit: evaluator-only retrieval-completeness diagnostic added
+
+Before freezing Phase 3, added a small observability layer so a future diagnosis failure can
+be separated from a Collector/context-retrieval failure — `src/renacir/evaluation/retrieval.py`,
+deliberately a new top-level package **outside** `renacir.collector` (nothing in Collector
+imports it; nothing in it is reachable from `collect()`). The context-selection algorithm
+itself (traceback-referenced files → failing test file → single-hop local imports, for
+original-fixture cases only) is unchanged — this step measures that policy, it does not modify
+it. No embeddings, search, RAG, or transitive traversal was added or considered for addition.
+
+**`RetrievalDiagnostic`** (evaluator-only; not part of `ModelFacingContext`, not part of
+`CollectorOutput`): `selected_file_count`/`_total_chars`/`_total_lines`, `selection_reasons`
+(count per reason), `empty_context`, `truncation_occurred`, plus
+`reference_relevant_files_available/_retrieved/_total` and `reference_relevant_file_recall` —
+computed by comparing `selected_context`'s paths against `reference_relevant_files(case)`: a
+real case's already-recorded `upstream.production_files`, or a synthetic case's `+++ b/<path>`
+diff headers parsed from the stored `fix.patch`. `None` (never a fabricated `False`/`0`) when
+no file list can be derived.
+
+**Leakage-independence, proven not just asserted**: `compute_retrieval_diagnostic` is called
+strictly *after* `collect()` returns and is read-only with respect to its `CollectorOutput`
+argument. `tests/evaluation/test_retrieval.py::test_reference_relevance_cannot_influence_collection`
+scores the *same* already-produced `CollectorOutput` against two maximally different
+reference-file answers (a case's real reference set vs. `None`, via an empty benchmark root)
+and confirms the output is byte-for-byte unchanged by either call, then re-runs `collect()`
+independently and confirms it reproduces the identical result — evaluator knowledge can score
+retrieval after the fact but cannot feed back into it.
+
+**A factual correction to Phase 3's own `docs/collector.md`, found while building this**: an
+earlier draft called `helpers.py` "the most diagnostically relevant file" for
+`import-renamed-helper` without distinguishing "where the bug's root cause lives" from "what
+the historical repair actually touches." Checked directly against `reference/fix.patch`: the
+repair modifies only `main.py`'s import statement; `helpers.py` is never itself touched. Under
+the diagnostic's strict repair-touched-files definition, this case therefore shows **complete**
+recall (`main.py` is both the only reference-relevant file and already selected via the
+traceback rule) — not the incomplete recall the single-hop limitation might suggest. This is
+reported as measured, not adjusted to match the earlier (imprecise) framing:
+
+| Case | selected files | reference-relevant files | retrieved | recall | empty_context |
+|---|---|---|---|---|---|
+| `assertion-average-off-by-one` | `test_stats.py`, `stats.py` | `stats.py` | 1/1 | 1.0 | false |
+| `import-renamed-helper` | `test_main.py`, `main.py` | `main.py` | 1/1 | **1.0** (corrected from an assumed "incomplete") | false |
+| `httpie-custom-host-header` | *(none)* | `httpie/models.py` | 0/1 | **0.0** | **true** |
+
+Both the 1.0 and 0.0 results are kept exactly as measured, per the explicit instruction not to
+adjust the algorithm to make scores look better either way. `httpie-custom-host-header`'s zero
+recall reflects a real, already-documented property: its only traceback frame is the withheld
+retrospective test overlay, so rule 1 finds nothing selectable and rules 2/3 don't run at all
+for a reconstructed case.
+
+**Also tested**: a constructed no-applicable-metadata case (`reference_relevant_files_available:
+false`, all three dependent fields `None`, not a fabricated zero) and truncation accounting
+(`truncation_occurred: true` under an artificially tight `max_lines_per_file`) — both via
+`tests/evaluation/test_retrieval.py`, 7 tests total.
+
+**Verified before considering this audit step complete**: full `pytest` suite (240 passed —
+233 prior + 7 new) and unrestricted `pytest .` both pass; `ruff check .` and
+`ruff format --check .` clean; `git diff --check` clean; `python -m renacir.benchmark list`
+unchanged (still 12 cases). The three re-run CLI demonstrations
+(`assertion-average-off-by-one`, `import-renamed-helper`, `httpie-custom-host-header`) produce
+`selected_context`/`stdout`/`stderr`/`parsed_failure` identical to the pre-audit Phase 3
+report, with the diagnostic printed as clearly-labeled additional output, never replacing or
+altering the existing fields.
+
+**Documentation**: `docs/collector.md` gained the diagnostic's contract, the `helpers.py`
+correction above, and an explicit "what this is not" statement (not a claim about the only
+relevant files, not semantic relevance, not a diagnosis-success predictor).
+`docs/research_protocol.md`'s unresolved item 12 updated from "deferred until Collector is
+implemented" to "narrowed" — the per-case measurement now exists; the aggregation/reporting
+policy across the benchmark remains open, not decided by this entry.
+
+**Explicitly not claimed**: that recall is a proxy for semantic relevance, that 1.0 recall
+predicts diagnosis success, or that 0.0 recall predicts failure. No change to
+context-selection rules, limits, or defaults. No Diagnoser, Patcher, Validator, Gatekeeper, or
+Orchestrator code was added. No LLM SDK, embeddings, search, or RAG dependency was added. No
+benchmark case was added, modified, or removed.

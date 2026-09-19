@@ -5,10 +5,16 @@ confidence gate — it is the testbed, not the end goal (see `PROJECT_SPEC.md`).
 
 ## Components
 
-**Collector**
-Input: a failed GitHub Actions run (repo, commit, workflow logs).
-Output: failing test output, the diff/commit under test, and the minimal set of repo files
-relevant to the failure (the failing test file plus its direct dependencies).
+**Collector** — implemented, Phase 3 (`src/renacir/collector/`).
+Input: a benchmark/reconstructed case id (`CollectorInput`). Live GitHub Actions ingestion
+(repo, commit, workflow logs) is a later integration phase, not built yet — this phase
+consumes cases via the existing `renacir.benchmark` staging/execution infrastructure only.
+Output: `CollectorOutput` — execution evidence (stdout/stderr/exit code), a deterministically
+parsed failure (error type/message, traceback frames, summary — no LLM), and a deterministic,
+bounded selection of relevant source files (the failing test file plus its direct local
+imports, or whatever the traceback itself references). See `docs/collector.md` for the full
+contract, context-selection rules, and information-boundary guarantees, including the
+retrospective-test-overlay handling for reconstructed real cases.
 
 **Diagnoser**
 Input: the Collector's output.
@@ -77,6 +83,7 @@ Failed CI run
 
 ## Current status
 
-Collector, Diagnoser, Patcher, Validator, Gatekeeper, and Orchestrator are all unimplemented.
-Phase 0 (current) is only the surrounding service skeleton (FastAPI app, `/health`, config,
-CI). See `README.md` for status and `docs/decisions.md` for the phased build plan.
+Collector is implemented (Phase 3), scoped to benchmark/reconstructed cases only — see above
+and `docs/collector.md`. Diagnoser, Patcher, Validator, Gatekeeper, and Orchestrator are all
+still unimplemented. No LLM SDK and no GitHub API integration exist anywhere in the codebase
+yet. See `README.md` for status and `docs/decisions.md` for the phased build plan.

@@ -21,9 +21,41 @@ def test_candidate_log_records_the_phase_2b_dropped_candidate():
     assert record.rejection_reasons != []
 
 
-def test_no_real_world_candidates_recorded_yet():
+def test_real_world_candidates_are_recorded_with_all_three_decisions():
     log = load_candidate_log()
-    assert all(r.source != "real" for r in log.records)
+    real_records = [r for r in log.records if r.source == "real"]
+    decisions = {r.decision for r in real_records}
+
+    assert decisions == {"accepted", "held"}, (
+        "expected both accepted (implemented) and held (investigated, not implemented "
+        "for a documented methodological reason) real-world candidates"
+    )
+
+
+def test_held_candidates_are_not_conflated_with_rejected():
+    log = load_candidate_log()
+    held = {r.candidate_id: r for r in log.records if r.decision == "held"}
+
+    assert held.keys() == {"tqdm-tenumerate-start", "thefuck-pip-unknown-command"}
+    for record in held.values():
+        assert record.benchmark_case_id is None
+        assert record.rejection_reasons == []
+        assert record.hold_reason is not None and "HOLD" in record.hold_reason
+
+
+def test_accepted_real_candidates_point_at_the_three_manifest_cases():
+    log = load_candidate_log()
+    accepted_real = {
+        r.candidate_id: r.benchmark_case_id
+        for r in log.records
+        if r.source == "real" and r.decision == "accepted"
+    }
+
+    assert accepted_real == {
+        "httpie-none-header-skip": "httpie-none-header-skip",
+        "httpie-custom-host-header": "httpie-custom-host-header",
+        "click-path-resolve-symlink": "click-path-resolve-symlink",
+    }
 
 
 def test_candidates_file_exists_and_is_separate_from_manifest():

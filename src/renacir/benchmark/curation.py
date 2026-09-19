@@ -22,11 +22,26 @@ CANDIDATES_SCHEMA_VERSION = 1
 
 
 class CandidateCurationRecord(BaseModel):
+    """`decision` distinguishes three outcomes, never conflated:
+
+    - `"accepted"` — implemented as an executable `BenchmarkCase`
+      (`benchmark_case_id` set).
+    - `"rejected"` — investigated and found unsuitable (invalid,
+      irreproducible, license-blocked, etc.).
+    - `"held"` — investigated, confirmed to be a real historical bug, but
+      not implemented as an executable case for a documented methodological
+      reason (e.g. HOLD — REAL-HISTORY/RETROSPECTIVE-TEST, see
+      `docs/research_protocol.md`'s REAL-CI taxonomy). A held candidate is
+      not "rejected as invalid" and must never be silently reclassified as
+      such.
+    """
+
     candidate_id: str
     source: SourceType
     upstream_identifier: str | None = None
     review_date: str
-    decision: Literal["accepted", "rejected"]
+    decision: Literal["accepted", "rejected", "held"]
+    hold_reason: str | None = None
     rejection_reasons: list[str] = []
     license_notes: str | None = None
     reproducibility_notes: str | None = None

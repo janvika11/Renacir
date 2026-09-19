@@ -37,9 +37,22 @@ def validate_case_paths(case: BenchmarkCase, benchmark_root: Path = DEFAULT_BENC
     if not patch_path.is_file():
         raise FileNotFoundError(f"{case.id}: reference repair patch not found: {patch_path}")
 
-    test_file = case.failing_test.split("::", 1)[0]
-    if not (directory / test_file).is_file():
-        raise FileNotFoundError(f"{case.id}: failing test file not found: {directory / test_file}")
+    if case.test_overlay is not None:
+        overlay_path = directory / case.test_overlay.path
+        if not overlay_path.is_file():
+            raise FileNotFoundError(f"{case.id}: test overlay not found: {overlay_path}")
+        test_file = case.failing_test.split("::", 1)[0]
+        if case.test_overlay.target_path != test_file:
+            raise ValueError(
+                f"{case.id}: test_overlay.target_path ({case.test_overlay.target_path!r}) "
+                f"must match failing_test's file ({test_file!r})"
+            )
+    else:
+        test_file = case.failing_test.split("::", 1)[0]
+        if not (directory / test_file).is_file():
+            raise FileNotFoundError(
+                f"{case.id}: failing test file not found: {directory / test_file}"
+            )
 
     for check in case.independent_checks:
         check_path = directory / check.path

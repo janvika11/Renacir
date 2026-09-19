@@ -1,0 +1,6 @@
+{
+  "id": "httpie-none-header-skip",
+  "category": "assertion",
+  "description": "httpie.sessions.Session.update_headers() crashes with AttributeError when a request header's value is None (bytes.decode() called on None) -- occurs during `--download` within a `--session`, where some request headers are legitimately unset.",
+  "root_cause": "missing None check before value.decode('utf8') in Session.update_headers()"
+}

@@ -13,6 +13,16 @@ Field groups follow the four information tiers documented in
   case's `reference/` directory. This is evaluator/reference material, not a
   claim about what a "correct" repair must equal — see
   `docs/research_protocol.md` §7.
+
+Real-world (Phase 2E) cases additionally carry `upstream` (Tier C/D
+reconstruction-recipe and provenance metadata — never read by
+`renacir.benchmark.context.build_model_facing_context`) and, where the
+failing test was introduced by the historical fix commit itself, a
+`test_overlay` (Tier D — present for both the pre-repair and post-repair
+evaluator runs, but, like `reference/`, never part of the model-visible
+staged tree). `upstream` is `None` for every synthetic case; no synthetic
+case is ever given fabricated upstream provenance. See
+`docs/benchmark_schema.md` for the reconstruction-recipe architecture.
 """
 
 from typing import Literal
@@ -23,6 +33,7 @@ FailureCategory = Literal["assertion", "import"]
 SourceType = Literal["synthetic", "real"]
 FoldAssignment = Literal["unassigned", "dev", "calibration", "test"]
 ContaminationRiskFlag = Literal["not_applicable", "unknown", "low", "plausible"]
+RealCISubtype = Literal["real_ci_a", "real_ci_b", "real_ci_c"]
 
 
 class ReferenceRepair(BaseModel):
@@ -101,6 +112,109 @@ class CurationMetadata(BaseModel):
     contamination_risk: ContaminationRisk = ContaminationRisk()
 
 
+class CompatibilityAdaptation(BaseModel):
+    """Tier C. A modernization shim needed only to reconstruct a runnable
+    environment for this case on hardware/interpreters that postdate it —
+    never part of the historical bug or its historical repair, and never
+    touching the file(s) named in `UpstreamProvenance.production_files`.
+    `file_path` is relative to the reconstructed checkout root (e.g.
+    `"conftest.py"`); `file_content` is written verbatim by
+    `renacir.benchmark.reconstruction.prepare_case` during PREPARATION,
+    before any evaluator run. See `docs/benchmark_schema.md`.
+    """
+
+    description: str
+    reason: str
+    file_path: str
+    file_content: str
+
+
+class HistoricalRuntime(BaseModel):
+    """Tier C. What's known about the ORIGINAL historical environment the
+    bug and its fix occurred in — distinct from `ReconstructionRuntime`,
+    the environment actually used to verify this case in this project.
+    Fields are `None` where genuinely unknown; never claimed more
+    precisely than the primary-source evidence supports.
+    """
+
+    python_version: str | None = None
+    notes: str | None = None
+
+
+class PreparationStep(BaseModel):
+    """Tier C. One command executed during PREPARATION — the network-
+    requiring, one-time (idempotent/cached) step that materializes a real
+    case's reconstructed checkout, distinct from evaluation, which must
+    remain offline. `argv` is executed directly (never through a shell);
+    `cwd` is relative to the case's reconstruction cache root (e.g. `"."`
+    or `"repo"`). See `renacir.benchmark.reconstruction.prepare_case`.
+    """
+
+    argv: list[str]
+    cwd: str = "."
+
+
+class ReconstructionRuntime(BaseModel):
+    """Tier A/C. The environment actually verified this session, plus the
+    documented, narrow compatibility adaptations required to run
+    historical-era code on it.
+    """
+
+    python_version: str
+    compatibility_adaptations: list[CompatibilityAdaptation] = []
+
+
+class RetrospectiveTestOverlay(BaseModel):
+    """Tier D. For a real case whose failing test was introduced BY the
+    historical fix commit (a retrospective regression test — see the
+    REAL-CI-C definition in `docs/research_protocol.md`), this is the test
+    file applied for BOTH the pre-repair and post-repair evaluator runs.
+    Unlike an ordinarily-vendored test file, it is — like `reference/` —
+    never part of the model-visible staged tree; it is copied in only by
+    `renacir.benchmark.runner.staged_case`. `path` is relative to the case
+    directory and always lives under `reference/`. `target_path` is where
+    it lands inside the reconstructed checkout (e.g.
+    `"tests/test_renacir_repro.py"`), which must match `failing_test`.
+    """
+
+    path: str
+    target_path: str
+
+
+class UpstreamProvenance(BaseModel):
+    """Tier C/D. Real-world provenance and reconstruction-recipe metadata
+    for a REAL-CI case. `None` of these fields are ever read by
+    `renacir.benchmark.context.build_model_facing_context` — see
+    `tests/benchmark/test_context.py`. Always `None` on `BenchmarkCase` for
+    synthetic cases; no synthetic case is ever given placeholder or
+    fabricated values here. See `docs/benchmark_schema.md`.
+    """
+
+    repository: str
+    repository_url: str
+    license: str
+    license_verification_note: str
+    issue_url: str | None = None
+    issue_date: str | None = None
+    buggy_commit: str
+    fix_commit: str
+    fix_date: str | None = None
+    production_files: list[str]
+    real_ci_subtype: RealCISubtype
+    historical_runtime: HistoricalRuntime
+    reconstruction_runtime: ReconstructionRuntime
+    preparation_steps: list[PreparationStep]
+    preparation_requires_network: bool
+    evaluation_requires_network: bool
+    # Path, relative to the reconstructed checkout root, containing the
+    # importable package ("." for a flat layout, "src" for a src layout).
+    # Evaluation prepends `<staged checkout>/<package_root>` to PYTHONPATH so
+    # the package actually imported is always the one in the freshly staged
+    # (pre- or post-repair) copy, never a stale editable-install reference
+    # back into the persistent reconstruction cache (see runner._subprocess_env).
+    package_root: str = "."
+
+
 class BenchmarkCase(BaseModel):
     id: str
     category: FailureCategory
@@ -112,6 +226,8 @@ class BenchmarkCase(BaseModel):
     source: SourceMetadata
     curation: CurationMetadata
     independent_checks: list[IndependentCheck] = []
+    upstream: UpstreamProvenance | None = None
+    test_overlay: RetrospectiveTestOverlay | None = None
 
 
 class BenchmarkManifest(BaseModel):

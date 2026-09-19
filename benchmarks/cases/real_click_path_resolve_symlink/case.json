@@ -1,0 +1,6 @@
+{
+  "id": "click-path-resolve-symlink",
+  "category": "assertion",
+  "description": "click.Path(resolve_path=True) fails to resolve a relative symlink correctly: os.path.realpath() is called on the raw os.readlink() result, which resolves relative to the process's current working directory rather than the symlink's own containing directory.",
+  "root_cause": "os.path.realpath(os.readlink(rv)) resolves relative to cwd instead of the symlink's containing directory"
+}
