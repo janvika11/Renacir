@@ -14,6 +14,7 @@ from renacir.diagnoser.diagnoser import (
 )
 from renacir.diagnoser.prompts.v1 import PROMPT_VERSION, SYSTEM_PROMPT, render_user_prompt
 from renacir.diagnoser.providers.anthropic import AnthropicConfigurationError, AnthropicProvider
+from renacir.diagnoser.providers.ollama import OllamaProvider, fetch_model_metadata
 from renacir.evaluation.diagnosis import score_suspected_files
 from renacir.evaluation.retrieval import compute_retrieval_diagnostic
 
@@ -90,24 +91,36 @@ def cmd_diagnose(args: argparse.Namespace) -> int:
         return 1
 
     if not args.allow_api_call:
+        reason = (
+            "a real, paid Anthropic API call"
+            if args.provider == "anthropic"
+            else "a real local Ollama inference call"
+        )
         print(
-            "refusing: this would make a real, paid Anthropic API call. "
+            f"refusing: this would make {reason}. "
             "Pass --allow-api-call to proceed. This is a safety/cost guard, not an "
             "experimental variable.",
             file=sys.stderr,
         )
         return 1
 
-    if args.provider != "anthropic":
-        # unreachable given choices=["anthropic"], kept explicit for when a
-        # second provider is added
+    model_metadata: dict[str, str] = {}
+    if args.provider == "anthropic":
+        try:
+            provider = AnthropicProvider(api_key=settings.anthropic_api_key or "")
+        except AnthropicConfigurationError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+    elif args.provider == "ollama":
+        provider = OllamaProvider()
+        # Evaluator/reproducibility-side only — never part of LLMRequest,
+        # never influences the call itself. Fetched before the call so a
+        # failure here is visible pre-call rather than silently absent.
+        model_metadata = fetch_model_metadata(model)
+    else:
+        # unreachable given choices=["anthropic", "ollama"], kept explicit
+        # for when another provider is added
         print(f"unsupported provider: {args.provider}", file=sys.stderr)
-        return 1
-
-    try:
-        provider = AnthropicProvider(api_key=settings.anthropic_api_key or "")
-    except AnthropicConfigurationError as exc:
-        print(str(exc), file=sys.stderr)
         return 1
 
     output = collect(CollectorInput(case_id=case.id))
@@ -122,10 +135,12 @@ def cmd_diagnose(args: argparse.Namespace) -> int:
     print(f"prompt_version: {PROMPT_VERSION}")
     print(f"prompt fingerprint: {fingerprint}")
     print(f"model: {model}")
+    if model_metadata:
+        print(f"model_metadata: {model_metadata}")
     print(f"temperature: {args.temperature}")
     print(f"max_tokens: {args.max_tokens}")
     print()
-    print(">>> making exactly one real Anthropic API call now <<<")
+    print(f">>> making exactly one real {args.provider} call now <<<")
 
     record = diagnose(
         case.id,
@@ -135,6 +150,7 @@ def cmd_diagnose(args: argparse.Namespace) -> int:
         model=model,
         temperature=args.temperature,
         max_tokens=args.max_tokens,
+        model_metadata=model_metadata,
     )
 
     print()
@@ -196,16 +212,18 @@ def main() -> int:
     diagnose_parser.add_argument(
         "--condition", choices=["failure_output_only", "full_context"], required=True
     )
-    diagnose_parser.add_argument("--provider", choices=["anthropic"], required=True)
+    diagnose_parser.add_argument("--provider", choices=["anthropic", "ollama"], required=True)
     diagnose_parser.add_argument(
-        "--model", default=None, help="exact model id (falls back to LLM_MODEL env var; no default)"
+        "--model",
+        default=None,
+        help="exact model id/tag (falls back to LLM_MODEL env var; no default)",
     )
     diagnose_parser.add_argument("--temperature", type=float, default=0.0)
     diagnose_parser.add_argument("--max-tokens", type=int, default=1024)
     diagnose_parser.add_argument(
         "--allow-api-call",
         action="store_true",
-        help="required to actually contact Anthropic — a real, paid API call",
+        help="required to actually contact a provider — a real API call, paid or local",
     )
     diagnose_parser.add_argument(
         "--json", action="store_true", help="also print the full DiagnosisRunRecord as JSON"

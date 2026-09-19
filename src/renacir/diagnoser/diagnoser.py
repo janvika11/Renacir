@@ -102,6 +102,7 @@ def diagnose(
     temperature: float,
     max_tokens: int,
     run_id: str | None = None,
+    model_metadata: dict[str, str] | None = None,
 ) -> DiagnosisRunRecord:
     diagnoser_input = build_diagnoser_input(output, condition)
     user_prompt = render_user_prompt(diagnoser_input)
@@ -157,6 +158,7 @@ def diagnose(
         latency_seconds=response.latency_seconds,
         input_tokens=response.input_tokens,
         output_tokens=response.output_tokens,
+        model_metadata=model_metadata or {},
     )
 
 

@@ -878,3 +878,93 @@ Patcher, Validator, Gatekeeper, or Orchestrator code was added. No dependency be
 `anthropic` was added. No benchmark case, manifest entry, or fixture was touched. Collector
 and `RetrievalDiagnostic` behavior unchanged (no test in either area was modified, only
 re-run).
+
+## 2026-09-20 — Phase 4C-L: Ollama adapter added, one local development/pilot smoke call made
+
+**Context gap flagged, not silently filled**: this phase's instructions were framed as "a
+correction to Phase 4C-L," referencing a prior detailed prompt not present anywhere in this
+session's visible history. Rather than fabricate what that prompt might have said, this work
+proceeded by direct analogy to Phase 4C's already-implemented, already-approved
+Anthropic-adapter pattern, applying this message's explicit corrections on top. Any place
+this required judgment beyond what was explicitly stated is called out below, not presented as
+if it were dictated.
+
+**Added**: `src/renacir/diagnoser/providers/ollama.py` (`OllamaProvider`,
+`fetch_model_metadata()`), extending the same `LLMProvider` protocol Anthropic already
+implements — `Diagnoser → LLMProvider → OllamaProvider → <model tag>`, no Qwen-specific
+provider, no Qwen-specific logic anywhere in `renacir.diagnoser`. Uses only `urllib` (stdlib)
+— no new dependency, unlike Phase 4C's `anthropic` SDK addition, since Ollama's local REST API
+needs nothing beyond stdlib HTTP.
+
+**Model-family-agnostic, verified not just designed**: `OllamaProvider.generate()` and
+`fetch_model_metadata()` were each tested against a completely different, fabricated model
+family (`llama3.1:8b`) using the identical code path as `qwen2.5-coder:7b`, confirming no
+family-specific branch exists. One implementation attempt was corrected before being tested at
+all: an early draft of `fetch_model_metadata` looked up `model_info["qwen2.context_length"]` —
+a family-prefixed GGUF metadata key, which would have been exactly the "Qwen-specific logic"
+this phase explicitly forbade. Found by inspecting Ollama's actual `/api/show` response before
+finalizing the implementation; fixed by switching to `/api/tags`, which reports
+`details.context_length` (and `.family`, `.quantization_level`, `.parameter_size`) under
+generic, non-family-prefixed keys — no dynamic key construction needed at all.
+
+**Reproducibility metadata**: `DiagnosisRunRecord` gained one new generic field,
+`model_metadata: dict[str, str] = {}` — provider-agnostic (empty for Anthropic, populated by
+Ollama with digest/family/quantization/parameter-size/context-length), never assumed to carry
+specific keys, never populated by model-family-specific logic in the Diagnoser core itself
+(`fetch_model_metadata` is called by the CLI, not by `diagnose()`, and its result is passed in
+as plain data).
+
+**Safety posture preserved**: `--allow-api-call` is required for the Ollama path too, with
+provider-specific refusal wording ("a real local Ollama inference call" vs. "a real, paid
+Anthropic API call") — local and free was not treated as license for silent invocation.
+Confirmed no `ANTHROPIC_API_KEY` or any secret is read/required on the Ollama path.
+
+**A real discrepancy found and fixed, not left in**: the new CLI-level offline test for the
+Ollama path (`test_ollama_provider_requires_no_api_key`) called `cmd_diagnose()` end-to-end
+with a stubbed provider, which meant every offline test-suite run wrote a stub
+`DiagnosisRunRecord` into the *real* `artifacts/diagnosis_runs/` directory — the same directory
+the genuine smoke-call result was saved to. Found by inspecting that directory's contents after
+the real smoke call and noticing 4 of 5 files were `provider: "_StubOllamaProvider"`. Fixed by
+monkeypatching `DEFAULT_RUN_RECORD_DIR` to `tmp_path` in that one test; the 4 pre-existing
+pollution files were deleted, leaving only the genuine smoke-call record. Verified by running
+the full suite twice in a row afterward and confirming the directory still contained exactly
+one file.
+
+**An unrelated, pre-existing intermittent flake observed, not chased down**: one full-suite
+run this session showed `tests/collector/test_collector.py::test_collect_is_deterministic_for_a_real_case`
+fail once, then pass cleanly on an immediate re-run and in isolation. This matches a known
+class of flakiness already documented from Phase 3 (real-case determinism sensitivity to
+`.benchmark-cache`'s persistent bytecode-cache state across repeated back-to-back full-suite
+runs in one session) — unrelated to any change in this phase (nothing in `renacir.benchmark`
+or `renacir.collector` was touched), not investigated further here since it falls outside this
+phase's scope.
+
+**The one real local smoke call**: `ollama serve` was started (it was not already running) to
+run `ollama list`, confirming `qwen2.5-coder:7b` (digest
+`dae161e27b0e90dd1856c8bb3209201fd6736d8eb66298e75ed87571486f4364`, family `qwen2`,
+quantization `Q4_K_M`, 7.6B parameters) was already present locally — no model was downloaded.
+`python -m renacir diagnose assertion-average-off-by-one --condition full_context --provider
+ollama --model qwen2.5-coder:7b --temperature 0 --max-tokens 1024 --allow-api-call` produced
+`parse_status: ok`, a correctly-grounded diagnosis (`stats.py`'s off-by-one denominator,
+confidence 0.95, zero grounding violations), latency ~9.4s, 881 input / 164 output tokens.
+Evaluator-side scoring (computed strictly after, never fed back): suspected-file recall 1.0,
+precision 0.5 (the model also cited the failing test file itself, which is not part of the
+strict repair-touched reference set — not a defect, just outside that narrow definition). This
+is one development/pilot integration call on one synthetic case with one already-installed
+model — not the final research experiment, and not evidence of general diagnostic accuracy for
+`qwen2.5-coder:7b` or for the Ollama path. `diagnoser-v1` was not modified based on this
+result.
+
+**Verified before considering this phase complete**: full offline suite (`pytest -q`,
+361 passed, including the new Ollama tests) run *before* the smoke call; `ruff check .` and
+`ruff format --check .` clean; `git diff --check` clean; benchmark manifest/fixtures
+untouched; Collector and `RetrievalDiagnostic` behavior unchanged. No second real call of any
+kind was made. No Anthropic call was made this phase.
+
+**Explicitly not claimed**: that `qwen2.5-coder:7b` (or any model) is diagnostically accurate
+in general; that this smoke call validates `diagnoser-v1`; that the original "Phase 4C-L"
+prompt's full requirements were read rather than inferred by analogy — the specific corrections
+in this phase's actual message were followed exactly, everything else was reconstructed from
+Phase 4C's established, already-approved pattern. No Patcher, Validator, Gatekeeper, or
+Orchestrator code was added. No new dependency was added (stdlib `urllib` only). No benchmark
+case was touched.

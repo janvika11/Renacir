@@ -1,15 +1,13 @@
 # Diagnoser
 
-**Status: Phase 4C, 2026-09-20 — Anthropic adapter implemented and offline-verified; the
-planned single smoke call has NOT been made.** Phase 4B's provider-independent core is
-unchanged. Phase 4C adds a real `AnthropicProvider` adapter and a `python -m renacir diagnose`
-CLI command gated behind `--allow-api-call`, both fully covered by offline tests (mocked at
-the SDK boundary — no network call in any test). No real diagnosis experiment has been run,
-and this document makes no claim about diagnosis accuracy, quality, or confidence calibration
-— there is no data yet to support one. **Why no call has been made yet**: the smoke call
-requires an exact Anthropic model identifier, which this project's own design deliberately
-never defaults or guesses (see "Model identifier" below) — that choice is outstanding, not an
-implementation gap.
+**Status: Phase 4C-L, 2026-09-20 — an `OllamaProvider` adapter is implemented,
+offline-verified, and has completed exactly one local development/pilot smoke call.** Phase
+4C's `AnthropicProvider` remains implemented and offline-verified but has still made zero real
+calls (no API key configured). This document's Anthropic section below is unchanged from
+Phase 4C. The Ollama smoke call (see "Ollama adapter" below) is a development/pilot
+integration check, not the final research experiment — one call, on one synthetic case, with
+one already-locally-installed model. **No diagnosis-accuracy, quality, or calibration claim
+follows from it.**
 
 ## Responsibility and non-responsibilities
 
@@ -295,6 +293,65 @@ git-ignored directory (`artifacts/diagnosis_runs/` by default, added to `.gitign
 phase). No database. A saved run record is raw experimental output, not methodological ground
 truth — it is never read back into any test or into the frozen benchmark.
 
+## Ollama adapter (Phase 4C-L)
+
+`src/renacir/diagnoser/providers/ollama.py` — a second `LLMProvider` implementation, for local
+inference via [Ollama](https://ollama.com)'s REST API, added alongside (not instead of)
+`AnthropicProvider`. Same architecture: `Diagnoser → LLMProvider → OllamaProvider →
+<model tag>`.
+
+**Model-family-agnostic by construction, not just by intent**: the exact model tag (e.g.
+`qwen2.5-coder:7b`) flows through `LLMRequest.model` exactly like any other provider.
+`OllamaProvider` and `renacir.diagnoser.diagnoser` contain no model-family-specific branch,
+string match, or default anywhere — verified by
+`tests/diagnoser/test_ollama_provider.py::test_generate_is_model_family_agnostic` and
+`::test_fetch_model_metadata_is_model_family_agnostic`, both of which swap in an unrelated
+model family (`llama3.1:8b`) and confirm identical code paths handle it. Using a different
+locally-pulled model requires no code change in this module or in the Diagnoser core.
+
+**Transport**: Python standard library `urllib` only — no SDK, no new dependency. POSTs to
+`/api/chat` (`messages: [{role: system}, {role: user}]`, matching `LLMRequest` exactly) and
+reads `/api/tags` for reproducibility metadata (see below). No retry, no streaming, no tool
+use. Ollama reports some failures (e.g. an unpulled model) as a 200 response with an `"error"`
+key rather than an HTTP error status — mapped to `provider_error` the same way as a transport
+failure, tested explicitly
+(`tests/diagnoser/test_ollama_provider.py::test_generate_maps_ollama_error_payload_to_provider_error`).
+
+**Never downloads a model.** `OllamaProvider` only ever calls a model already present
+locally; if it isn't, the call fails and is reported as a `provider_error` like any other
+failure — there is no pull/fetch logic anywhere in this module.
+
+**Reproducibility metadata**: `fetch_model_metadata(model)` — deliberately separate from
+`OllamaProvider.generate()`, never part of `LLMRequest`/`LLMResponse`, never called by the
+Diagnoser core — queries `/api/tags` and extracts generically-named fields Ollama already
+reports (`details.family`, `.quantization_level`, `.parameter_size`, `.context_length`, plus
+the model's content digest) into `DiagnosisRunRecord.model_metadata` (new, generic,
+provider-agnostic field: `dict[str, str]`, empty for providers with nothing extra to record,
+such as Anthropic). No model-family-specific key lookup exists anywhere in this function —
+confirmed by testing it against both `qwen2.5-coder:7b` and a fabricated `llama3.1:8b` entry
+with identical extraction logic.
+
+**CLI**: `python -m renacir diagnose <case-id> --condition {...} --provider ollama --model
+<tag> --allow-api-call [--temperature 0.0] [--max-tokens 1024]`. Same `--allow-api-call` gate
+as Anthropic — local and free is not treated as license for silent/automatic invocation. No
+`ANTHROPIC_API_KEY` (or any secret) is required or read on this path; verified by
+`tests/test_diagnose_cli.py::test_ollama_provider_requires_no_api_key`.
+
+**Development/pilot smoke call performed (2026-09-20)**: `assertion-average-off-by-one` /
+`full_context`, model `qwen2.5-coder:7b` (already locally installed — no model was
+downloaded), temperature 0.0, max_tokens 1024. Recorded model metadata: digest
+`dae161e27b0e90dd1856c8bb3209201fd6736d8eb66298e75ed87571486f4364`, family `qwen2`,
+quantization `Q4_K_M`, parameter_size `7.6B`, context_length `32768`. Result:
+`parse_status: ok`, `grounding_violation: false`, `insufficient_context: false`,
+`diagnosis_confidence: 0.95`; the model correctly identified `stats.py`'s off-by-one
+denominator as the root cause. **This is one development/pilot integration call, not the
+final research experiment** — it demonstrates the Ollama path works end-to-end and produces a
+well-formed, grounded `Diagnosis`; it is not a claim about `qwen2.5-coder:7b`'s general
+diagnostic accuracy, and `diagnoser-v1` was not modified based on this single result, per the
+prompt-freeze rule already established for the Anthropic path. The full run record is saved
+under `artifacts/diagnosis_runs/` (git-ignored, not committed, not read back into any test or
+the benchmark).
+
 ## What has and has not happened
 
 Implemented and tested offline (Phase 4B): `DiagnoserInput`, `Diagnosis`, `DiagnosisRunRecord`
@@ -302,6 +359,10 @@ schemas; the versioned prompt renderer; the `LLMProvider` protocol and `FakeProv
 parsing/validation with no retry; grounding-violation detection; the two input conditions; the
 automated evaluation helpers. Implemented and tested offline (Phase 4C): the `AnthropicProvider`
 adapter (mocked at the SDK boundary in every test) and the `diagnose` CLI command with its
-`--allow-api-call` gate. **Not done, not claimed**: no real network call of any kind; no real diagnosis has been
-generated; no accuracy, quality, or calibration claim of any kind is made by this document or
-by any code in this phase.
+`--allow-api-call` gate — **zero real Anthropic calls have been made** (no API key configured
+in this environment). Implemented, tested offline, and exercised with exactly one real local
+call (Phase 4C-L): the `OllamaProvider` adapter and `fetch_model_metadata()`. **Not done, not
+claimed**: no real Anthropic network call of any kind; no diagnosis-accuracy, quality, or
+calibration claim of any kind, for either provider — the one Ollama smoke call is a
+development/pilot integration check on a single synthetic case, not evidence about model
+quality in general.

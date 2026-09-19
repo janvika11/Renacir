@@ -96,3 +96,11 @@ class DiagnosisRunRecord(BaseModel):
     latency_seconds: float | None
     input_tokens: int | None
     output_tokens: int | None
+
+    # Generic, provider-agnostic bag for extra reproducibility metadata a
+    # given provider adapter may have available (e.g. Ollama's exact model
+    # digest/quantization) — never required, never assumed to have any
+    # specific keys, and never populated with model-family-specific logic
+    # in the Diagnoser core itself. Empty for providers with nothing extra
+    # to record (e.g. Anthropic, where the model string is already exact).
+    model_metadata: dict[str, str] = {}
